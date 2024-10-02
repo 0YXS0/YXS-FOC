@@ -1,0 +1,73 @@
+{
+  "folders": [
+    {
+      "path": "../APP"
+    },
+    {
+      "path": "../CMSIS"
+    },
+    {
+      "path": "../FWLib"
+    },
+    {
+      "path": "."
+    },
+    {
+      "path": "../User"
+    }
+  ],
+  "settings": {
+    "files.autoGuessEncoding": true,
+    "C_Cpp.default.configurationProvider": "cl.eide",
+    "C_Cpp.errorSquiggles": "disabled",
+    "files.associations": {
+      ".eideignore": "ignore",
+      "*.a51": "a51",
+      "*.h": "c",
+      "*.c": "c",
+      "*.hxx": "cpp",
+      "*.hpp": "cpp",
+      "*.c++": "cpp",
+      "*.cpp": "cpp",
+      "*.cxx": "cpp",
+      "*.cc": "cpp",
+      "limits": "c",
+      "array": "c",
+      "string": "c",
+      "string_view": "c",
+      "cstddef": "c"
+    },
+    "[yaml]": {
+      "editor.insertSpaces": true,
+      "editor.tabSize": 4,
+      "editor.autoIndent": "advanced"
+    },
+    "cortex-debug.variableUseNaturalFormat": true,
+    "editor.fontSize": 18,
+    "C_Cpp.vcFormat.indent.preprocessor": "leftmostColumn",
+    "C_Cpp.vcFormat.newLine.beforeOpenBrace.namespace": "sameLine",
+    "C_Cpp.vcFormat.newLine.beforeOpenBrace.lambda": "sameLine",
+    "C_Cpp.vcFormat.newLine.closeBraceSameLine.emptyFunction": true,
+    "C_Cpp.vcFormat.newLine.closeBraceSameLine.emptyType": true,
+    "C_Cpp.vcFormat.space.beforeEmptySquareBrackets": true,
+    "C_Cpp.vcFormat.space.betweenEmptyBraces": true,
+    "C_Cpp.vcFormat.space.betweenEmptyLambdaBrackets": true,
+    "C_Cpp.vcFormat.space.betweenEmptyParameterListParentheses": true,
+    "C_Cpp.vcFormat.space.betweenEmptySquareBrackets": true
+  },
+  "extensions": {
+    "recommendations": [
+      "cl.eide",
+      "keroc.hex-fmt",
+      "xiaoyongdong.srecord",
+      "hars.cppsnippets",
+      "zixuanwang.linkerscript",
+      "redhat.vscode-yaml",
+      "IBM.output-colorizer",
+      "cschlosser.doxdocgen",
+      "ms-vscode.vscode-serial-monitor",
+      "dan-c-underwood.arm",
+      "marus25.cortex-debug"
+    ]
+  }
+}
