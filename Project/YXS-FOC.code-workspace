@@ -1,18 +1,23 @@
 {
   "folders": [
     {
-      "path": "../APP"
-    },
-    {
+      "name": "CMSIS",
       "path": "../CMSIS"
     },
     {
+      "name": "FWLib",
       "path": "../FWLib"
     },
     {
+      "name": "Project",
       "path": "."
     },
     {
+      "name": "APP",
+      "path": "../APP"
+    },
+    {
+      "name": "User",
       "path": "../User"
     }
   ],
@@ -42,7 +47,7 @@
       "editor.tabSize": 4,
       "editor.autoIndent": "advanced"
     },
-    "cortex-debug.variableUseNaturalFormat": true,
+    "cortex-debug.variableUseNaturalFormat": false,
     "editor.fontSize": 18,
     "C_Cpp.vcFormat.indent.preprocessor": "leftmostColumn",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.namespace": "sameLine",

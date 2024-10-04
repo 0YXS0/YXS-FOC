@@ -78,6 +78,7 @@ void timer_config(uint16_t prescaler, uint32_t period)
     timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_3, 750);   //占空比
 
     timer_automatic_output_enable(TIMER0);    //自动输出使能
+    
     timer_enable(TIMER0);         //使能定时器
 }
 

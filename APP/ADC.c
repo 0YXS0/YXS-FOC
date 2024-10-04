@@ -122,9 +122,9 @@ void adc_config(void)
     adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 2); // 转换通道数量
 
     // 配置ADC通道转换顺序，采样时间(转换时间=采样时间+12.5个时钟周期=14个时钟周期=14/30MHz=0.466us)
-    adc_inserted_channel_config(ADC1, 0, ADC_CHANNEL_6, ADC_SAMPLETIME_1POINT5);    // U相电流
+    adc_inserted_channel_config(ADC1, 0, ADC_CHANNEL_6, ADC_SAMPLETIME_7POINT5);    // U相电流
     // adc_inserted_channel_config(ADC0, 1, ADC_CHANNEL_7, ADC_SAMPLETIME_1POINT5);    // V相电流
-    adc_inserted_channel_config(ADC1, 1, ADC_CHANNEL_8, ADC_SAMPLETIME_1POINT5);    // W相电流
+    adc_inserted_channel_config(ADC1, 1, ADC_CHANNEL_8, ADC_SAMPLETIME_7POINT5);    // W相电流
 
     adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_EXTTRIG_INSERTED_T0_CH3);   // 定时器0通道3上升沿触发
     adc_external_trigger_config(ADC1, ADC_INSERTED_CHANNEL, ENABLE); // 注入组使能
@@ -142,20 +142,17 @@ void adc_config(void)
 /// @return ADC原始采样值
 float adc_getRawValue(const ADC_Channel channel)
 {
-    uint16_t adc_value = 0;
     switch (channel)
     {
     case _U_Value:  // U相电流
-        adc_value = adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_0);
         return (((adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_0) - Offset_U) * Reference_Gain)) / Gain;
         // case _V_Value:  // V相电流
         //     return (((adc_inserted_data_read(ADC0, ADC_INSERTED_CHANNEL_1) - Offset_V) * Reference_Gain)) / Gain;
     case _W_Value:  // W相电流
-        adc_value = adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_1);
         return (((adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_1) - Offset_W) * Reference_Gain)) / Gain;
     case _Power_Value:  // 电源电压
         adc_software_trigger_enable(ADC0, ADC_REGULAR_CHANNEL); // 软件触发ADC转换
-        Delay_us(2);
+        while (dma_flag_get(DMA0, DMA_CH0, DMA_FLAG_FTF) == RESET);  // 等待转换完成
         return *Power_ADC_Value * Reference_Gain * 6.1F; // 电压分压比为51:10
     default:
         return 0;

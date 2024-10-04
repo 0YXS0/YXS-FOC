@@ -42,6 +42,12 @@
           },
           {
             "path": "../APP/Encoder.c"
+          },
+          {
+            "path": "../APP/Command.c"
+          },
+          {
+            "path": "../APP/Flash.c"
           }
         ],
         "folders": []
@@ -222,11 +228,10 @@
           "../FWLib/Source",
           "../CMSIS/GD/GD32F30x/Source/ARM",
           "../APP",
-          "../CMSIS/DSP"
+          "../CMSIS/DSP",
+          "../User"
         ],
-        "libList": [
-          "../CMSIS/DSP"
-        ],
+        "libList": [],
         "defineList": [
           "GD32F30X_HD",
           "USE_STDPERIPH_DRIVER",
@@ -348,11 +353,9 @@
           "../FWLib/Source",
           "../CMSIS/GD/GD32F30x/Source/ARM",
           "../APP",
-          "../CMSIS/DSP"
+          "../User"
         ],
-        "libList": [
-          "../CMSIS/DSP"
-        ],
+        "libList": [],
         "defineList": [
           "GD32F30X_HD",
           "USE_STDPERIPH_DRIVER",

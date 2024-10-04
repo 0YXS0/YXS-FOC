@@ -1,16 +1,11 @@
 #include "Encoder.h"
 #include "math.h"
-
+#include "main.h"
 #include "AS5600.h"
 
 #define _2PI 6.2831853F //2PI
-#define ABS(x) ((x) > 0 ? (x) : -(x)) //求绝对值
-#define ENCODER_PULSE 4096	//编码器脉冲数
-#define Encoder_DT (1.0F / 10000.0F) //编码器更新周期
-#define PLL_BANDWIDTH 2000 //PLL带宽
 static const float PLL_Kp = 2.0F * PLL_BANDWIDTH; //PLL比例增益
 static const float PLL_Ki = 0.25F * (PLL_Kp * PLL_Kp); //PLL积分增益
-
 typedef struct
 {
     int RawCount; //原始计数

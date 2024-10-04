@@ -3,8 +3,8 @@
 #include "stdarg.h"
 #include "gd32f30x.h"
 #include "stdlib.h"
+#include "Command.h"
 
-#include "PID.h"
 
 #define USART1_RX_SIZE  24
 #define USART1_TX_SIZE  128
@@ -83,7 +83,7 @@ void usart_config(void)
     usart_dma_transmit_config(USART1, USART_TRANSMIT_DMA_ENABLE);    // 使能USART1的DMA接收
     usart_dma_receive_config(USART1, USART_RECEIVE_DMA_ENABLE);    // 使能USART1的DMA发送
 
-    nvic_irq_enable(USART1_IRQn, 1, 0); //使能USART1中断
+    nvic_irq_enable(USART1_IRQn, 1, 1); //使能USART1中断
     usart_interrupt_enable(USART1, USART_INT_IDLE);    //使能USART1空闲中断
 
     usart_dma_config( ); // 配置串口1 DMA
@@ -91,30 +91,30 @@ void usart_config(void)
     usart_enable(USART1);   // 使能串口
 }
 
-extern PIDInfo PIDInfo_Speed;//电流环PID参数
-extern PIDInfo PIDInfo_Current_ID;//电流环PID参数
+// extern PIDInfo PIDInfo_Speed;//电流环PID参数
+// extern PIDInfo PIDInfo_Current_ID;//电流环PID参数
 
-extern float target;//目标值
-PIDInfo* info = &PIDInfo_Speed;
+// extern float target;//目标值
+// PIDInfo* info = &PIDInfo_Speed;
 /// @brief 串口1调试数据处理
 void usart_data_handle(void)
 {
-    float num = strtof(USART1RX_Buffer + 1, NULL);
-    switch (USART1RX_Buffer[0])
-    {
-    case 'p':
-        info->Kp = num;
-        break;
-    case 'i':
-        info->Ki = num;
-        break;
-    case 'd':
-        info->Kd = num;
-        break;
-    case 't':
-        target = num;
-        break;
-    }
+    // float num = strtof(USART1RX_Buffer + 1, NULL);
+    // switch (USART1RX_Buffer[0])
+    // {
+    // case 'p':
+    //     info->Kp = num;
+    //     break;
+    // case 'i':
+    //     info->Ki = num;
+    //     break;
+    // case 'd':
+    //     info->Kd = num;
+    //     break;
+    // case 't':
+    //     target = num;
+    //     break;
+    // }
 }
 
 /// @brief 串口1 中断处理函数
@@ -126,7 +126,7 @@ void USART1_IRQHandler(void)
         dma_channel_disable(DMA0, DMA_CH5); //关闭DMA0通道5 
         dma_flag_clear(DMA0, DMA_CH5, DMA_INTF_FTFIF);  //清DMA0通道5标志位
 
-        usart_data_handle( );    //串口1调试数据处理
+        UsartCommandAnalyze(USART1RX_Buffer);    //串口命令解析
 
         dma_transfer_number_config(DMA0, DMA_CH5, USART1_RX_SIZE);      //重新设置数据传输量
         dma_channel_enable(DMA0, DMA_CH5);      //使能DMA0通道5
