@@ -1,6 +1,23 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include <stdint.h>
+
+typedef struct
+{
+    uint8_t MotorID;	//电机ID
+    uint8_t PolePairs;	//电机极对数
+    int8_t Direction;	//电机转向
+    float Resistance;	//电机电阻
+    float Inductance;	//电机电感
+    uint32_t EncoderOffset;	//编码器偏置
+    uint8_t MotorMode;	//电机模式
+    float DetectingCurrent;	//检测电流
+    float MaxDetectingVoltage;	//最大检测电压
+    float MaxSpeed;	//最大速度
+}SystemConfigInfo;	//系统配置信息
+extern SystemConfigInfo const* const SystemInfo;
+
 /// 定义基础信息
 #define ABS(x) ((x) > 0 ? (x) : -(x)) // 求绝对值
 #define MIN(a, b) ((a) < (b) ? (a) : (b)) // 求最小值

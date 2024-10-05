@@ -1,14 +1,17 @@
 #ifndef MOTOR_H
 #define MOTOR_H
 
-#include "gd32f30x.h"
+#include <stdint.h>
+#include "PID.h"
 typedef enum
 {
     MM_NULL = 0,	//空模式
     MM_DetectingResistance,	//检测电机电阻
     MM_DetectingInductance,	//检测电机电感
-    MM_DetectingPolePairs,	//检测电机极对数
-    MM_DetectingEncoder,	//检测编码器
+    MM_EncoderCalibration,	//检测编码器
+    MM_CurrentControl,	//电流控制
+    MM_SpeedControl,	//速度控制
+    MM_PositionControl,	//位置控制
     MM_OpenLoop,	//开环控制
 
     MM_Error	//错误
@@ -19,11 +22,18 @@ typedef struct
     uint8_t MotorID;    //电机ID
     uint8_t PolePairs;  //电机极对数
     uint32_t MAXPulse;  //PWM定时器最大计数值
-    uint8_t Direction;  //电机转向
+    int8_t Direction;  //电机转向
     float Resistance;   //电机电阻
     float Inductance;   //电机电感
+    float DetectingCurrent; //检测电流
+    float MaxDetectingVoltage;  //最大检测电压
+    float MaxSpeed; //最大速度
     float Udc;  //母线电压
     float Angle;    //电机电角度
+    float TargetCurrent;    //目标电流
+    float TargetSpeed;  //目标速度
+    float TargetPosition;   //目标位置
+
     float Ia;   //U相电流
     float Ib;   //V相电流
     float Ic;   //W相电流
@@ -34,6 +44,10 @@ typedef struct
 
     float sinValue; //角度sin值
     float cosValue; //角度cos值
+    PIDInfo PIDInfoIQ; // q轴电流环PID
+    PIDInfo PIDInfoID; // d轴电流环PID
+    PIDInfo PIDInfoSpeed;   //速度环PID
+    PIDInfo PIDInfoPosition;    //位置环PID
 
     float Ualpha;   //alpha轴
     float Ubeta;    //beta轴
@@ -57,6 +71,8 @@ void SVPWM(MotorInfo* info);    //SVPWM
 void ApplyMotorInfo(MotorInfo* info);  //将电机信息应用到电机
 int8_t DetectingResistance(MotorInfo* info, float DetectingCurrent, float MaxDetectingVoltage);    //检测电机电阻
 int8_t DetectingInductance(MotorInfo* info, float DetectingVoltage);    //检测电机电感
+int8_t EncoderOffsetCalibration(MotorInfo* info);    //编码器校准
+void UpdatePIDInfo(MotorInfo* info);    //更新PID参数
 
 #endif // !MOTOR_H
 

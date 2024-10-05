@@ -6,25 +6,7 @@
 #define _2PI 6.2831853F //2PI
 static const float PLL_Kp = 2.0F * PLL_BANDWIDTH; //PLL比例增益
 static const float PLL_Ki = 0.25F * (PLL_Kp * PLL_Kp); //PLL积分增益
-typedef struct
-{
-    int RawCount; //原始计数
-    int AccCount; //累积计数
-    int LastRawCount; //上一次的原始计数
-    int DiffCount; //计数差值
-
-    float EstimateAccCount; //预测累积计数    
-    float EstimateCount; //预测单圈内计数
-    float EstimateSpeedCount; //预测速度计数
-
-    int OffsetCount; //偏置计数
-    float IntterpolationValue; //插值值
-
-    float Angle; //原始角度
-    float AccAngle; //累积角度
-    float Speed;    //速度
-} EncoderInfo;
-static EncoderInfo Encoder = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  //编码器信息
+EncoderInfo Encoder = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  //编码器信息
 
 // 获取编码器原始计数
 static inline unsigned int getEncoderRawCount(void)
@@ -53,6 +35,10 @@ float Encoder_GetValue(EncoderValueType type) //获取编码器值
         return Encoder.AccAngle;
     case EVT_Speed:
         return Encoder.Speed;
+    case EVT_Count:
+        return Encoder.RawCount;
+    case EVT_AccCount:
+        return Encoder.AccCount;
     default:
         return 0;
     }
@@ -60,7 +46,7 @@ float Encoder_GetValue(EncoderValueType type) //获取编码器值
 
 void Encoder_UpdateValue(void)
 {
-    Encoder.RawCount = getEncoderRawCount( ); //获取原始计数
+    Encoder.RawCount = -getEncoderRawCount( ); //获取原始计数
 
     Encoder.DiffCount = Encoder.RawCount - Encoder.LastRawCount; //计算计数差值
     if (Encoder.DiffCount > ENCODER_PULSE / 2) Encoder.DiffCount -= ENCODER_PULSE;  // 逆时针旋转溢出处理
@@ -105,7 +91,8 @@ void Encoder_UpdateValue(void)
     // float InterpolatedCount = Encoder.RawCount + Encoder.IntterpolationValue; // 加上插值值
 
     // 计算角度
-    Encoder.Angle = (Encoder.RawCount + Encoder.IntterpolationValue - Encoder.OffsetCount) * _2PI / ENCODER_PULSE; //计算原始角度
-    Encoder.AccAngle = (Encoder.EstimateAccCount - Encoder.OffsetCount + Encoder.IntterpolationValue) * _2PI / ENCODER_PULSE; //计算累积角度
+    Encoder.Angle = fmodf((Encoder.RawCount + Encoder.IntterpolationValue - Encoder.OffsetCount) * _2PI / ENCODER_PULSE, _2PI); //计算角度
+    if (Encoder.Angle < 0) Encoder.Angle += _2PI; //转换为0~2PI范围内的值
+    Encoder.AccAngle = (Encoder.EstimateAccCount + Encoder.IntterpolationValue) * _2PI / ENCODER_PULSE; //计算累积角度
     Encoder.Speed = Encoder.EstimateSpeedCount * _2PI / ENCODER_PULSE; //计算速度
 }

@@ -6,7 +6,7 @@
 #include "Command.h"
 
 
-#define USART1_RX_SIZE  24
+#define USART1_RX_SIZE  128
 #define USART1_TX_SIZE  128
 char USART1RX_Buffer[USART1_RX_SIZE] = { 0 };    //串口1接收缓存
 uint8_t USART1TX_Buffer[USART1_TX_SIZE] = { 0 };    //串口1发送缓存
@@ -91,32 +91,6 @@ void usart_config(void)
     usart_enable(USART1);   // 使能串口
 }
 
-// extern PIDInfo PIDInfo_Speed;//电流环PID参数
-// extern PIDInfo PIDInfo_Current_ID;//电流环PID参数
-
-// extern float target;//目标值
-// PIDInfo* info = &PIDInfo_Speed;
-/// @brief 串口1调试数据处理
-void usart_data_handle(void)
-{
-    // float num = strtof(USART1RX_Buffer + 1, NULL);
-    // switch (USART1RX_Buffer[0])
-    // {
-    // case 'p':
-    //     info->Kp = num;
-    //     break;
-    // case 'i':
-    //     info->Ki = num;
-    //     break;
-    // case 'd':
-    //     info->Kd = num;
-    //     break;
-    // case 't':
-    //     target = num;
-    //     break;
-    // }
-}
-
 /// @brief 串口1 中断处理函数
 void USART1_IRQHandler(void)
 {
@@ -147,41 +121,6 @@ void usart1_dma_send(uint8_t* data, uint8_t dataSize)
 
     /* enable DMA channel to start send */
     dma_channel_enable(DMA0, DMA_CH6);
-}
-
-/// @brief 串口1 DMA发送数据,当data==NULL且dataSize==0时为冲刷数据,立即发送缓存中的数据
-/// @param data 数据指针
-/// @param dataSize 数据大小
-void usart1_send_data(uint8_t* data, uint8_t dataSize)
-{
-    static uint8_t buffer_data_num = 0; //缓存区中数据个数
-
-    if (data != NULL && dataSize != 0)
-    {
-        if (dataSize > (USART1_TX_SIZE / 2))
-        {///当数据大于缓存的一半时,直接发送
-            usart1_dma_send(data, dataSize);    //dma发送数据
-            return;
-        }
-        else if ((buffer_data_num + dataSize) > USART1_TX_SIZE)
-        {///当缓存区剩余空间不足时,直接发送数据
-            usart1_dma_send(data, dataSize);    //dma发送数据
-            return;
-        }
-        ///将数据存入缓存区
-        for (uint8_t i = 0; i < dataSize; i++)
-        {
-            USART1TX_Buffer[buffer_data_num++] = data[i];
-        }
-    }
-    if ((data == NULL && dataSize == 0) || buffer_data_num == USART1_TX_SIZE)
-    {///当data==NULL且dataSize==0时为冲刷数据,立即发送缓存中的数据;或者缓存区满时,立即发送缓存中的数据
-        if (buffer_data_num == 0) return;
-
-        usart1_dma_send(USART1TX_Buffer, buffer_data_num);    //dma发送数据
-
-        buffer_data_num = 0;    //清空缓存区计数
-    }
 }
 
 #if 0
@@ -221,7 +160,7 @@ void JustFloat_Show(uint8_t Num, ...)	//Justfloat 数据协议
 {
     va_list args;
     va_start(args, Num);
-    static uint8_t data[48];
+    static uint8_t data[128];
     static FloatLongType fl;
     static uint8_t t = 0;
 

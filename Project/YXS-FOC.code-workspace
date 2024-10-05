@@ -47,7 +47,7 @@
       "editor.tabSize": 4,
       "editor.autoIndent": "advanced"
     },
-    "cortex-debug.variableUseNaturalFormat": false,
+    "cortex-debug.variableUseNaturalFormat": true,
     "editor.fontSize": 18,
     "C_Cpp.vcFormat.indent.preprocessor": "leftmostColumn",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.namespace": "sameLine",

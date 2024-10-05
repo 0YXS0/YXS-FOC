@@ -65,7 +65,7 @@ void timer_config(uint16_t prescaler, uint32_t period)
     timer_channel_output_mode_config(TIMER0, TIMER_CH_0, TIMER_OC_MODE_PWM1);   //PWM模式1
     timer_channel_output_mode_config(TIMER0, TIMER_CH_1, TIMER_OC_MODE_PWM1);   //PWM模式1
     timer_channel_output_mode_config(TIMER0, TIMER_CH_2, TIMER_OC_MODE_PWM1);   //PWM模式1
-    timer_channel_output_mode_config(TIMER0, TIMER_CH_3, TIMER_OC_MODE_PWM1);   //PWM模式0
+    timer_channel_output_mode_config(TIMER0, TIMER_CH_3, TIMER_OC_MODE_PWM1);   //PWM模式1
     //使能影子寄存器
     timer_channel_output_shadow_config(TIMER0, TIMER_CH_0, TIMER_OC_SHADOW_ENABLE);
     timer_channel_output_shadow_config(TIMER0, TIMER_CH_1, TIMER_OC_SHADOW_ENABLE);
@@ -77,8 +77,15 @@ void timer_config(uint16_t prescaler, uint32_t period)
     timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, 0);   //占空比
     timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_3, 750);   //占空比
 
+    timer_channel_output_state_config(TIMER0, TIMER_CH_0, TIMER_CCX_DISABLE);
+    timer_channel_output_state_config(TIMER0, TIMER_CH_1, TIMER_CCX_DISABLE);
+    timer_channel_output_state_config(TIMER0, TIMER_CH_2, TIMER_CCX_DISABLE);
+    timer_channel_complementary_output_state_config(TIMER0, TIMER_CH_0, TIMER_CCXN_DISABLE);
+    timer_channel_complementary_output_state_config(TIMER0, TIMER_CH_1, TIMER_CCXN_DISABLE);
+    timer_channel_complementary_output_state_config(TIMER0, TIMER_CH_2, TIMER_CCXN_DISABLE);
+
     timer_automatic_output_enable(TIMER0);    //自动输出使能
-    
+
     timer_enable(TIMER0);         //使能定时器
 }
 

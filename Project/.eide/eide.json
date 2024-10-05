@@ -48,6 +48,9 @@
           },
           {
             "path": "../APP/Flash.c"
+          },
+          {
+            "path": "../APP/MMPrintf.c"
           }
         ],
         "folders": []
@@ -262,7 +265,7 @@
             "output-format": "elf",
             "remove-unused-input-sections": true,
             "LIB_FLAGS": "-lm",
-            "$toolName": "auto"
+            "$toolName": "g++"
           }
         },
         "AC5": {
