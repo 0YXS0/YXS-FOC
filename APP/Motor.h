@@ -37,6 +37,8 @@ typedef struct
     float TargetPosition;   //目标位置
     uint8_t AnticoggingCalibratedFlag;    //抗齿槽力矩校准标志(0:已校准,!0:未校准)
     float AnticogongTorqueTable[ANTICOGING_TABLE_NUM]; // 抗齿槽力矩表
+    WarningType WarningInfo;    //警告信息
+    ErrorType ErrorInfo;    //错误信息
 
     float Ia;   //U相电流
     float Ib;   //V相电流
@@ -77,7 +79,7 @@ int8_t DetectingResistance(MotorInfo* info, float DetectingCurrent, float MaxDet
 int8_t DetectingInductance(MotorInfo* info, float DetectingVoltage);    //检测电机电感
 int8_t EncoderOffsetCalibration(MotorInfo* info);    //编码器校准
 int8_t AnticoggingCalibration(MotorInfo* info);    //抗齿槽力矩校准
-void UpdatePIDInfo(MotorInfo* info);    //更新PID参数
+void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag);   //检测电机信息有效性并更新PID参数
 
 #endif // !MOTOR_H
 

@@ -1,9 +1,9 @@
 #ifndef FILTER_H
 #define FILTER_H
 
-#include  "gd32f30x.h"
+#include  <stdint.h>
 
-typedef struct 
+typedef struct
 {
     float a;    //滤波系数
     float _1_a; //1-a
@@ -16,7 +16,6 @@ typedef struct
     float valueSum;  //采样值和
     float lastFilterValue;  //上一次滤波值
     uint8_t curNum; //当前采样值个数
-    float (*getValue)(void);    //获取采样值的函数
 }MoveAverageFilterInfo;   //移动平均滤波器参数
 
 typedef struct
@@ -42,7 +41,7 @@ typedef struct
 float FirstOrderFilter(FirstOrderFilterInfo* info, float Value);    //一阶滤波器
 float MiddleValueFilter(uint8_t N, float (*getValue)(void));    //中值滤波器
 float AverageFilter(uint8_t N, float (*getValue)(void));    //均值滤波器
-float MoveAverageFilter(MoveAverageFilterInfo* info);    //移动平均滤波
+float MoveAverageFilter(MoveAverageFilterInfo* info, float NewValue);    //移动平均滤波
 float LAverageFilter(LAverageFilterInfo* info);    //限幅滑动平均滤波
 float KalmanFilter(KalmanFilterInfo* info, float curValue);    //卡尔曼滤波
 

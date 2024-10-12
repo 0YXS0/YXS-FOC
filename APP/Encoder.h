@@ -2,6 +2,7 @@
 #define ENCODER_H
 
 #include <stdint.h>
+#include "AS5600.h"
 typedef enum
 {
     EVT_Angle = 1,   //原始角度
@@ -31,8 +32,14 @@ typedef struct
 } EncoderInfo;  //编码器信息
 extern EncoderInfo Encoder;  //编码器信息
 
-float Encoder_GetValue(EncoderValueType type);  //获取编码器值
-void Encoder_UpdateValue(void);  //更新编码器值
+/// @brief 获取编码器值
+/// @param Value 编码器值
+/// @return 0:成功 <0:失败
+static inline uint8_t getEncoderRawCount(uint32_t* Value)
+{
+    return AS5600_GetCount(Value);
+}
+int8_t Encoder_UpdateValue(void);  //更新编码器值
 
 #endif // !ENCODER_H
 

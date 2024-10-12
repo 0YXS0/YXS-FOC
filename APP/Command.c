@@ -88,7 +88,6 @@ void UsartCommandAnalyze(char* data)
         motor.MaxSpeed = strtof(data + 2, NULL);
         break;
     }
-    UpdatePIDInfo(&motor);  //更新PID参数
 }
 
 

@@ -160,7 +160,6 @@ float adc_getRawValue(const ADC_Channel channel)
 }
 
 /// @brief 初始化电机U、V、W相电流和电源电压偏置
-/// @return 1:初始化完成 0:初始化未完成
 void adc_OffsetConfig(void)
 {
     uint32_t sum_U = 0, sum_W = 0, sum_Reference = 0;

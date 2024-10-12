@@ -64,17 +64,18 @@ float AverageFilter(uint8_t N, float (*getValue)(void))
 ///        缺点：灵敏度低；对偶然出现的脉冲性干扰的抑制作用较差，不适于脉冲干扰较严重的场合比较浪费RAM（改进方法，减去的不是队首的值，而是上一次得到的平均值）
 /// @param info 滤波器参数
 /// @return 滤波后的值
-float MoveAverageFilter(MoveAverageFilterInfo* info)
+float MoveAverageFilter(MoveAverageFilterInfo* info, float NewValue)
 {
     if (info->curNum < info->N)
     {
-        info->valueSum += info->getValue( );
+        info->curNum++;
+        info->valueSum += NewValue;
         return info->lastFilterValue = info->valueSum / info->curNum;
     }
     else
     {
         info->valueSum -= info->lastFilterValue;
-        info->valueSum += info->getValue( );
+        info->valueSum += NewValue;
         return info->lastFilterValue = info->valueSum / info->N;
     }
 }

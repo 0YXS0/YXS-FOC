@@ -2,7 +2,7 @@
 #include "i2c.h"
 #include <stdio.h>
 
-#define TIMEOUT (uint32_t)0xffff
+#define TIMEOUT (uint32_t)0x0FFF  //超时时间
 
 /// @brief I2C GPIO Init
 void i2c0_gpio_config(void)

@@ -2,7 +2,6 @@
 #include "math.h"
 #include "Filter.h"
 #include "main.h"
-#include "AS5600.h"
 
 #define _PI 3.1415927F //PI
 #define _2PI 6.2831853F //2PI
@@ -11,45 +10,23 @@ static const float PLL_Ki = 0.25F * (PLL_Kp * PLL_Kp); //PLL积分增益
 EncoderInfo Encoder = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  //编码器信息
 FirstOrderFilterInfo FilterInfo_EncoderSpeed = { 0.8F, 0.2F, 0 }; //编码器滤波器参数
 
-// 获取编码器原始计数
-static inline unsigned int getEncoderRawCount(void)
-{
-    return AS5600_GetCount( );
-}
+// /// @brief 将值转换为-range~range范围内的值
+// /// @param value 要转换的值
+// /// @param range 范围
+// /// @return 转换后的值
+// static inline float wrap_pm(float value, float range)
+// {
+//     float t = fmodf(value + range, 2.0F * range);
+//     if (t < 0) t += 2.0F * range;
+//     return t - range;
+// }
 
-/// @brief 将值转换为-range~range范围内的值
-/// @param value 要转换的值
-/// @param range 范围
-/// @return 转换后的值
-static inline float wrap_pm(float value, float range)
+/// @brief 更新编码器值(角度、速度、累积角度)
+/// @return 0:成功 <0:失败
+int8_t Encoder_UpdateValue(void)
 {
-    float t = fmodf(value + range, 2.0F * range);
-    if (t < 0) t += 2.0F * range;
-    return t - range;
-}
-
-float Encoder_GetValue(EncoderValueType type) //获取编码器值
-{
-    switch (type)
-    {
-    case EVT_Angle:
-        return Encoder.Angle;
-    case EVT_AccAngle:
-        return Encoder.AccAngle;
-    case EVT_Speed:
-        return Encoder.Speed;
-    case EVT_Count:
-        return Encoder.RawCount;
-    case EVT_AccCount:
-        return Encoder.AccCount;
-    default:
-        return 0;
-    }
-}
-
-void Encoder_UpdateValue(void)
-{
-    Encoder.RawCount = getEncoderRawCount( ); // 获取原始计数
+    int8_t ret = getEncoderRawCount((uint32_t*)&Encoder.RawCount); // 获取原始计数
+    if (ret != 0) return ret; // 获取原始计数失败
 
     Encoder.DiffCount = Encoder.RawCount - Encoder.LastRawCount; // 计算计数差值
     if (Encoder.DiffCount > ENCODER_PULSE / 2) Encoder.DiffCount -= ENCODER_PULSE;  // 逆时针旋转溢出处理
@@ -80,7 +57,6 @@ void Encoder_UpdateValue(void)
     }
 
     // 插值计算   
-    // int CorrectedCount = Encoder.RawCount - Encoder.OffsetCount; //校正计数
     if (snap_to_zero_Speed) Encoder.IntterpolationValue = 0.5F;
     // else if (Encoder.DiffCount > 0) Encoder.IntterpolationValue = 0.0F;
     // else if (Encoder.DiffCount < 0) Encoder.IntterpolationValue = 1.0F;
@@ -90,11 +66,11 @@ void Encoder_UpdateValue(void)
         if (Encoder.IntterpolationValue > 1.0F) Encoder.IntterpolationValue = 1.0F;
         else if (Encoder.IntterpolationValue < 0.0F) Encoder.IntterpolationValue = 0.0F;
     }
-    // float InterpolatedCount = Encoder.RawCount + Encoder.IntterpolationValue; // 加上插值值
 
     // 计算角度
     Encoder.Angle = fmodf((Encoder.RawCount + Encoder.IntterpolationValue - Encoder.OffsetCount) * _2PI / ENCODER_PULSE, _2PI); //计算角度
     if (Encoder.Angle < 0) Encoder.Angle += _2PI; // 转换为0~2PI范围内的值
     Encoder.AccAngle = Encoder.AccCount * _2PI / ENCODER_PULSE; // 计算累积角度
     Encoder.Speed = FirstOrderFilter(&FilterInfo_EncoderSpeed, Encoder.EstimateSpeedCount * _2PI / ENCODER_PULSE); // 计算速度
+    return 0;
 }

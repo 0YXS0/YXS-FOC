@@ -3,7 +3,7 @@
 
 #include "gd32f30x.h"
 
-uint16_t AS5600_GetCount(void);    // 读取AS5600读原始角度(顺时针为正，逆时针为负)(使用I2C中断)
+int8_t AS5600_GetCount(uint32_t* Value);    //获取AS5600原始计数
 
 #endif // ! AS5600_H
 

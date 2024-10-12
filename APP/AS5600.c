@@ -17,14 +17,16 @@ static inline int8_t  AS5600_I2C_RecvData(uint8_t* Data, const uint8_t size)
     return i2c_read(AS5600_I2C, AS5600_ADDR, Data_Hight_Register_Addr, Data, size);
 }
 
-/// @brief AS5600读取原始角度(顺时针为正，逆时针为负)
-/// @return 编码器原始计数
-uint16_t AS5600_GetCount(void)
+/// @brief AS5600读取原始计数
+/// @param Value 计数值
+/// @return 成功返回0，失败返回负数
+int8_t AS5600_GetCount(uint32_t* Value)
 {
+    int8_t ret = 0;
     static uint8_t data[2] = { 0,0 };
-    AS5600_I2C_RecvData(data, 2);
-    // return (data[0] << 8 | data[1]) * 0.001534F;
-    return (data[0] << 8 | data[1]);
+    ret = AS5600_I2C_RecvData(data, 2);
+    *Value = (data[0] << 8 | data[1]);
+    return ret;
 }
 
 
