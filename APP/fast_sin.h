@@ -6,6 +6,8 @@
 #ifndef FAST_SIN_H
 #define FAST_SIN_H
 
+#include <math.h>
+
 #define M_PI (3.1415926f)
 
 // lolremez --float --degree 5 --range "1e-50:pi*pi"

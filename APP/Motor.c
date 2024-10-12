@@ -4,11 +4,13 @@
 #include "math.h"
 #include "main.h"
 #include "Encoder.h"
+#include "MMPrintf.h"
 
 #define _PI 3.1415927F
 #define _2PI 6.2831853F
-#define SQRT3 1.73205078F   // sqrt(3)
-#define SQRT3_DIV_2 0.866025388F    // sqrt(3)/2
+#define _SQRT3 1.73205078F   // sqrt(3)
+#define _SQRT3_DIV_2 0.866025388F    // sqrt(3)/2
+#define _SQRT3_DIV_3 0.57735026F    // sqrt(3)/3
 #define _1_DIV_3 0.33333333F    // 1/3
 #define _2_DIV_3 0.66666666F    // 2/3 
 
@@ -49,23 +51,24 @@ void ClosePWM(void)
 /// @param motor 电机信息
 static inline void setPWM(MotorInfo* motor)	//设置PWM
 {
-    if (motor->Direction == -1) //正转
+    int32_t Pulse = MAX(motor->PulseA, motor->PulseB);
+    Pulse = MAX(Pulse, motor->PulseC);
+    if (motor->Direction == 1)  // 正转
     {
         // 设置占空比
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, motor->PulseA); //U相
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, motor->PulseB); //V相
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, motor->PulseC); //W相
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, motor->MAXPulse - motor->PulseA); // U相
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, motor->MAXPulse - motor->PulseB); // V相
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, motor->MAXPulse - motor->PulseC); // W相
     }
-    else if (motor->Direction == 1) //反转
+    else if (motor->Direction == -1)    // 反转
     {
         // 设置占空比
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, motor->PulseC); //U相
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, motor->PulseB); //V相
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, motor->PulseA); //W相
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, motor->MAXPulse - motor->PulseA); // U相
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, motor->MAXPulse - motor->PulseC); // V相
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, motor->MAXPulse - motor->PulseB); // W相
     }
-    // ADC采样控制PWM
-    timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_3, MIN(MAX(MAX(motor->PulseA, motor->PulseB), motor->PulseC) + 75, 990));
-    // timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_3, motor->MAXPulse - 10);
+    Pulse = MIN(Pulse + 75, 990);
+    timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_3, 10); // ADC采样控制PWM
 }
 
 /// @brief Clarke变换
@@ -73,14 +76,14 @@ static inline void setPWM(MotorInfo* motor)	//设置PWM
 void Clarke_Transf(MotorInfo* info)
 {
     info->Ialpha = (2 * info->Ia - info->Ib - info->Ic) * _1_DIV_3;
-    info->Ibeta = (info->Ib - info->Ic) * 0.57735026F;   //0.57735026 = sqrt(3)/3
+    info->Ibeta = (info->Ib - info->Ic) * _SQRT3_DIV_3;   //0.57735026 = sqrt(3)/3
 }
 
 void Rev_Clarke_Transf(MotorInfo* info)
 {
     info->Ua = info->Ualpha;
-    info->Ub = -0.5f * info->Ualpha + SQRT3_DIV_2 * info->Ubeta;  //0.8660254 = sqrt(3)/2
-    info->Uc = -0.5f * info->Ualpha - SQRT3_DIV_2 * info->Ubeta;
+    info->Ub = -0.5f * info->Ualpha + _SQRT3_DIV_2 * info->Ubeta;  //0.8660254 = sqrt(3)/2
+    info->Uc = -0.5f * info->Ualpha - _SQRT3_DIV_2 * info->Ubeta;
 }
 
 /// @brief Park变换
@@ -105,7 +108,7 @@ void SVPWM(MotorInfo* info)
     float temp = 0, Tx = 0, Ty = 0, Tz = 0;
 
     //判断所处扇区
-    temp = SQRT3 * info->Ualpha;
+    temp = _SQRT3 * info->Ualpha;
     sector = info->Ubeta >= 0.0F ? 1 : 0;
     sector = temp >= info->Ubeta ? sector | 0x02 : sector;
     sector = -temp >= info->Ubeta ? sector | 0x04 : sector;
@@ -114,8 +117,8 @@ void SVPWM(MotorInfo* info)
     switch (sector)
     {
     case 3: //第一扇区
-        Tx = (1.5F * info->Ualpha - SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
-        Ty = SQRT3 * info->Ubeta * info->MAXPulse / info->Udc;
+        Tx = (1.5F * info->Ualpha - _SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
+        Ty = _SQRT3 * info->Ubeta * info->MAXPulse / info->Udc;
         if (Tx + Ty > info->MAXPulse)
         {
             Tx = info->MAXPulse * Tx / (Tx + Ty);
@@ -127,8 +130,8 @@ void SVPWM(MotorInfo* info)
         info->PulseC = Ty + info->PulseB;
         break;
     case 1: //第二扇区
-        Tx = (1.5F * info->Ualpha + SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
-        Ty = (-1.5F * info->Ualpha + SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
+        Tx = (1.5F * info->Ualpha + _SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
+        Ty = (-1.5F * info->Ualpha + _SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
         if (Tx + Ty > info->MAXPulse)
         {
             Tx = info->MAXPulse * Tx / (Tx + Ty);
@@ -140,8 +143,8 @@ void SVPWM(MotorInfo* info)
         info->PulseC = Tx + info->PulseA;
         break;
     case 5: //第三扇区
-        Tx = SQRT3 * info->Ubeta * info->MAXPulse / info->Udc;
-        Ty = (-1.5F * info->Ualpha - SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
+        Tx = _SQRT3 * info->Ubeta * info->MAXPulse / info->Udc;
+        Ty = (-1.5F * info->Ualpha - _SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
         if (Tx + Ty > info->MAXPulse)
         {
             Tx = info->MAXPulse * Tx / (Tx + Ty);
@@ -153,8 +156,8 @@ void SVPWM(MotorInfo* info)
         info->PulseC = Tx + Tz;
         break;
     case 4: //第四扇区
-        Tx = (-1.5F * info->Ualpha + SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
-        Ty = -SQRT3 * info->Ubeta * info->MAXPulse / info->Udc;
+        Tx = (-1.5F * info->Ualpha + _SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
+        Ty = -_SQRT3 * info->Ubeta * info->MAXPulse / info->Udc;
         if (Tx + Ty > info->MAXPulse)
         {
             Tx = info->MAXPulse * Tx / (Tx + Ty);
@@ -166,8 +169,8 @@ void SVPWM(MotorInfo* info)
         info->PulseC = Tz;
         break;
     case 6: //第五扇区
-        Tx = (-1.5F * info->Ualpha - SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
-        Ty = (1.5F * info->Ualpha - SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
+        Tx = (-1.5F * info->Ualpha - _SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
+        Ty = (1.5F * info->Ualpha - _SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
         if (Tx + Ty > info->MAXPulse)
         {
             Tx = info->MAXPulse * Tx / (Tx + Ty);
@@ -179,8 +182,8 @@ void SVPWM(MotorInfo* info)
         info->PulseC = Tz;
         break;
     case 2: //第六扇区
-        Tx = -SQRT3 * info->Ubeta * info->MAXPulse / info->Udc;
-        Ty = (1.5F * info->Ualpha + SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
+        Tx = -_SQRT3 * info->Ubeta * info->MAXPulse / info->Udc;
+        Ty = (1.5F * info->Ualpha + _SQRT3_DIV_2 * info->Ubeta) * info->MAXPulse / info->Udc;
         if (Tx + Ty > info->MAXPulse)
         {
             Tx = info->MAXPulse * Tx / (Tx + Ty);
@@ -323,13 +326,16 @@ int8_t DetectingInductance(MotorInfo* info, float DetectingVoltage)
 
 #define EOC_NUM 4
 #define CALIBRAATING_SPEED (4 * _PI)
+/// @brief 编码器偏置校准
+/// @param info 电机信息
+/// @return 0:校准未完成 1:校准完成 -1:校准失败 -2:极对数错误
 int8_t EncoderOffsetCalibration(MotorInfo* info)
 {
     static uint8_t state = 0;
     static int8_t Dir = 0, ret = 0;;
     static uint32_t LoopCount = 0;
-    static int32_t AccCount = 0, Diff = 0, StartCount = 0;
-    static float CalibratingVoltage = 0.0F, AccAngle = 0.0F;//校准电压,校准速度
+    static int32_t Diff = 0, StartCount = 0;
+    static float CalibratingVoltage = 0.0F, AccAngle = 0.0F, AccCount = 0;//校准电压,校准速度
     switch (state)
     {
     case 0:
@@ -340,7 +346,7 @@ int8_t EncoderOffsetCalibration(MotorInfo* info)
         info->Angle = 0.0F;
         AccAngle = 0.0F;
         AccCount = 0;
-        CalibratingVoltage = info->Resistance * info->DetectingCurrent * _2_DIV_3;
+        CalibratingVoltage = info->MaxCurrent * info->Resistance * _1_DIV_3;
         info->Uq = CalibratingVoltage;
         OpenPWM( );
         ApplyMotorInfo(info);
@@ -355,7 +361,7 @@ int8_t EncoderOffsetCalibration(MotorInfo* info)
         AccAngle += CALIBRAATING_SPEED * FOC_CONTROL_PERIOD;
         info->Angle = fmodf(AccAngle, _2PI);
         ApplyMotorInfo(info);
-        if (++LoopCount % 1000 == 0) AccCount += Encoder.AccCount;
+        if (++LoopCount % 10 == 0) AccCount += Encoder.AccCount;
         if (LoopCount > FOC_CONTROL_FREQ * EOC_NUM)
         {
             LoopCount = 0;
@@ -372,7 +378,7 @@ int8_t EncoderOffsetCalibration(MotorInfo* info)
             ClosePWM( );
             ret = -1;
         }
-        info->PolePairs = roundf((CALIBRAATING_SPEED * EOC_NUM / _2PI * ENCODER_PULSE) / Diff);
+        info->PolePairs = roundf((CALIBRAATING_SPEED * EOC_NUM / _2PI * ENCODER_PULSE) / ABS(Diff));
         if (info->PolePairs < 1 || info->PolePairs > 30)
         {
             ret = -2;
@@ -384,7 +390,7 @@ int8_t EncoderOffsetCalibration(MotorInfo* info)
         AccAngle -= CALIBRAATING_SPEED * FOC_CONTROL_PERIOD;
         info->Angle = fmodf(AccAngle, _2PI);
         ApplyMotorInfo(info);
-        if (++LoopCount % 1000 == 0) AccCount += Encoder.AccCount;
+        if (++LoopCount % 10 == 0) AccCount += Encoder.AccCount;
         if (LoopCount > FOC_CONTROL_FREQ * EOC_NUM)
         {
             LoopCount = 0;
@@ -394,11 +400,61 @@ int8_t EncoderOffsetCalibration(MotorInfo* info)
         break;
     case 4: // 计算偏置
         ClosePWM( );
-        Encoder.OffsetCount = fmodf(AccCount / ((FOC_CONTROL_FREQ / 1000) * EOC_NUM * 2), ENCODER_PULSE);
+        Encoder.OffsetCount = (int32_t)((AccCount / (FOC_CONTROL_FREQ / 10.0F * EOC_NUM * 2) - StartCount) + 0.5F);
         info->Direction = Dir;
         LoopCount = 0;
         state = 0;
         ret = 1;
+        break;
+    }
+    return ret;
+}
+
+int8_t AnticoggingCalibration(MotorInfo* info)
+{
+    static int8_t ret = 0;
+    static uint8_t State = 0;
+    static uint32_t index = 0, LoopCount = 0;
+    static float Diff = 0.0F, Increment = 0.0F;
+
+    switch (State)
+    {
+    case 0:
+        ret = 0;
+        index = 0;
+        LoopCount = 0;
+        Diff = 0.0F;
+        info->AnticoggingCalibratedFlag = 0;
+        Increment = (float)(ANTICOGING_INCREMENT) / (float)(ENCODER_PULSE + 1) * _2PI;
+        info->TargetPosition = -(Encoder.RawCount / ENCODER_PULSE * _2PI);
+        State = 1;
+        break;
+    case 1:
+        Diff = info->TargetPosition - Encoder.AccAngle; // 计算角度差
+        if (fabsf(Diff) < Increment / 2.0F && fabsf(Encoder.Speed) < 0.3F)
+        {/// 到达目标位置
+            info->AnticogongTorqueTable[index++] = info->PIDInfoSpeed.integral * info->PIDInfoSpeed.Ki; // 记录校准力矩
+            MM_printf("index:%d, Torque:%.6f\n", index - 1, info->AnticogongTorqueTable[index - 1]);
+            info->TargetPosition += Increment;  // 下一个目标位置
+            LoopCount = 0;  // 重置计数
+        }
+        else/// 未到达目标位置
+            LoopCount++;
+        if (LoopCount >= FOC_CONTROL_FREQ * 30)
+        {/// 超时
+            State = 0;
+            ret = -1;
+        }
+        if (index >= ANTICOGING_TABLE_NUM)  // 完成校准
+        {
+            LoopCount = 0;
+            State = 2;
+        }
+        break;
+    case 2:
+        ret = 1;
+        info->AnticoggingCalibratedFlag = 1;
+        State = 0;
         break;
     }
     return ret;
@@ -410,10 +466,10 @@ void UpdatePIDInfo(MotorInfo* info)
     info->PIDInfoIQ.Kp = (FOC_CONTROL_FREQ / 20 * info->Inductance);
     info->PIDInfoIQ.Ki = (info->Resistance / info->Inductance / FOC_CONTROL_FREQ);
     info->PIDInfoIQ.Kd = 0.0F;
-    info->PIDInfoIQ.maxOutput = info->Udc * _2_DIV_3;
+    info->PIDInfoIQ.maxOutput = info->MaxCurrent * info->Resistance;
     if (info->PIDInfoIQ.Ki == 0.0F) info->PIDInfoIQ.maxIntegral = 0.0F;
     else
-        info->PIDInfoIQ.maxIntegral = info->PIDInfoIQ.maxOutput * _1_DIV_3 / ABS(info->PIDInfoIQ.Ki);
+        info->PIDInfoIQ.maxIntegral = info->PIDInfoIQ.maxOutput * _2_DIV_3 / ABS(info->PIDInfoIQ.Ki);
 
     info->PIDInfoID.Kp = info->PIDInfoIQ.Kp;
     info->PIDInfoID.Ki = info->PIDInfoIQ.Ki;
@@ -422,15 +478,15 @@ void UpdatePIDInfo(MotorInfo* info)
     info->PIDInfoID.maxIntegral = info->PIDInfoIQ.maxIntegral;
 
     /// 速度环PID参数
-    info->PIDInfoSpeed.maxOutput = info->Udc / info->Resistance * _2_DIV_3;
+    info->PIDInfoSpeed.maxOutput = info->MaxCurrent;
     if (info->PIDInfoSpeed.Ki == 0.0F) info->PIDInfoSpeed.maxIntegral = 0.0F;
     else
-        info->PIDInfoSpeed.maxIntegral = info->PIDInfoSpeed.maxOutput * _1_DIV_3 / ABS(info->PIDInfoSpeed.Ki);
+        info->PIDInfoSpeed.maxIntegral = info->PIDInfoSpeed.maxOutput * _2_DIV_3 / ABS(info->PIDInfoSpeed.Ki);
 
     /// 位置环PID参数
     info->PIDInfoPosition.maxOutput = info->MaxSpeed;
     if (info->PIDInfoPosition.Ki == 0.0F) info->PIDInfoPosition.maxIntegral = 0.0F;
     else
-        info->PIDInfoPosition.maxIntegral = info->PIDInfoPosition.maxOutput * _1_DIV_3 / ABS(info->PIDInfoPosition.Ki);
+        info->PIDInfoPosition.maxIntegral = info->PIDInfoPosition.maxOutput * _2_DIV_3 / ABS(info->PIDInfoPosition.Ki);
 }
 

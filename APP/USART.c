@@ -160,7 +160,7 @@ void JustFloat_Show(uint8_t Num, ...)	//Justfloat 数据协议
 {
     va_list args;
     va_start(args, Num);
-    static uint8_t data[128];
+    static uint8_t data[256];
     static FloatLongType fl;
     static uint8_t t = 0;
 

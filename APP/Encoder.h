@@ -13,16 +13,16 @@ typedef enum
 
 typedef struct
 {
-    int RawCount; //原始计数
-    int AccCount; //累积计数
-    int LastRawCount; //上一次的原始计数
-    int DiffCount; //计数差值
+    int32_t RawCount; //原始计数
+    int32_t AccCount; //累积计数
+    int32_t LastRawCount; //上一次的原始计数
+    int32_t DiffCount; //计数差值
 
     float EstimateAccCount; //预测累积计数    
     float EstimateCount; //预测单圈内计数
     float EstimateSpeedCount; //预测速度计数
 
-    uint32_t OffsetCount; //偏置计数
+    int32_t OffsetCount; //偏置计数
     float IntterpolationValue; //插值值
 
     float Angle; //原始角度

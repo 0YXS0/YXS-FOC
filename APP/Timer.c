@@ -50,10 +50,10 @@ void timer_config(uint16_t prescaler, uint32_t period)
 
     //配置PWM参数
     timer_oc_parameter_struct pwm_structure;
-    pwm_structure.ocidlestate = TIMER_OC_IDLE_STATE_LOW;    //空闲状态为低电平
-    pwm_structure.ocnidlestate = TIMER_OCN_IDLE_STATE_LOW;  //空闲状态为低电平
-    pwm_structure.ocpolarity = TIMER_OC_POLARITY_HIGH;      //有效电平为高电平
-    pwm_structure.ocnpolarity = TIMER_OCN_POLARITY_HIGH;    //有效电平为高电平
+    pwm_structure.ocidlestate = TIMER_OC_IDLE_STATE_HIGH;    //空闲状态为低电平
+    pwm_structure.ocnidlestate = TIMER_OCN_IDLE_STATE_HIGH;  //空闲状态为低电平
+    pwm_structure.ocpolarity = TIMER_OC_POLARITY_LOW;      //有效电平为高电平
+    pwm_structure.ocnpolarity = TIMER_OCN_POLARITY_LOW;    //有效电平为高电平
     pwm_structure.outputstate = TIMER_CCX_ENABLE;       //输出使能
     pwm_structure.outputnstate = TIMER_CCXN_ENABLE;     //输出使能
 

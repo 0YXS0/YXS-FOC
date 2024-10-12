@@ -9,6 +9,7 @@ typedef struct
     float error, lastError; //误差、上次误差
     float integral;    //积分
     float output;    //输出
+    float lastOutput;    //上次输出
 }PIDInfo;
 
 typedef struct

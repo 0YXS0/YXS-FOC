@@ -2,6 +2,7 @@
 #define MOTOR_H
 
 #include <stdint.h>
+#include "main.h"
 #include "PID.h"
 typedef enum
 {
@@ -13,7 +14,7 @@ typedef enum
     MM_SpeedControl,	//速度控制
     MM_PositionControl,	//位置控制
     MM_OpenLoop,	//开环控制
-
+    MM_AnticoggingCalibration,	//抗齿槽力矩校准
     MM_Error	//错误
 }MotorMode;	//电机模式
 typedef struct
@@ -25,14 +26,17 @@ typedef struct
     int8_t Direction;  //电机转向
     float Resistance;   //电机电阻
     float Inductance;   //电机电感
-    float DetectingCurrent; //检测电流
-    float MaxDetectingVoltage;  //最大检测电压
+    // float DetectingCurrent; //检测电流
+    // float MaxDetectingVoltage;  //最大检测电压
+    float MaxCurrent;   //最大电流
     float MaxSpeed; //最大速度
     float Udc;  //母线电压
     float Angle;    //电机电角度
     float TargetCurrent;    //目标电流
     float TargetSpeed;  //目标速度
     float TargetPosition;   //目标位置
+    uint8_t AnticoggingCalibratedFlag;    //抗齿槽力矩校准标志(0:已校准,!0:未校准)
+    float AnticogongTorqueTable[ANTICOGING_TABLE_NUM]; // 抗齿槽力矩表
 
     float Ia;   //U相电流
     float Ib;   //V相电流
@@ -72,6 +76,7 @@ void ApplyMotorInfo(MotorInfo* info);  //将电机信息应用到电机
 int8_t DetectingResistance(MotorInfo* info, float DetectingCurrent, float MaxDetectingVoltage);    //检测电机电阻
 int8_t DetectingInductance(MotorInfo* info, float DetectingVoltage);    //检测电机电感
 int8_t EncoderOffsetCalibration(MotorInfo* info);    //编码器校准
+int8_t AnticoggingCalibration(MotorInfo* info);    //抗齿槽力矩校准
 void UpdatePIDInfo(MotorInfo* info);    //更新PID参数
 
 #endif // !MOTOR_H

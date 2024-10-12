@@ -2,7 +2,7 @@
 #define MAIN_H
 
 #include <stdint.h>
-
+#include "PID.h"
 typedef struct
 {
     uint8_t MotorID;	//电机ID
@@ -10,11 +10,17 @@ typedef struct
     int8_t Direction;	//电机转向
     float Resistance;	//电机电阻
     float Inductance;	//电机电感
-    uint32_t EncoderOffset;	//编码器偏置
+    int32_t EncoderOffset;	//编码器偏置
     uint8_t MotorMode;	//电机模式
-    float DetectingCurrent;	//检测电流
-    float MaxDetectingVoltage;	//最大检测电压
+    uint8_t AnticoggingCalibratedFlag;	//抗齿槽力矩校准标志(1:已校准,0:未校准)
+    // float DetectingCurrent;	//检测电流
+    // float MaxDetectingVoltage;	//最大检测电压
+    float MaxCurrent;	//最大电流
     float MaxSpeed;	//最大速度
+    float SpeedKp;	//速度环P参数
+    float SpeedKi;	//速度环I参数
+    float PositionKp;	//位置环P参数
+    float PositionKi;	//位置环I参数
 }SystemConfigInfo;	//系统配置信息
 extern SystemConfigInfo const* const SystemInfo;
 
@@ -30,9 +36,11 @@ extern SystemConfigInfo const* const SystemInfo;
 #define FOC_CONTROL_PERIOD (1.0F / FOC_CONTROL_FREQ)	// FOC控制周期
 
 // 定义编码器信息
-#define ENCODER_PULSE 4096	// 编码器最大计数值
+#define ENCODER_PULSE 4095	// 编码器最大计数值
+#define ANTICOGING_INCREMENT 4	// 抗齿槽力矩对应位置增量
+#define ANTICOGING_TABLE_NUM (uint32_t)((ENCODER_PULSE + 1) / ANTICOGING_INCREMENT)	// 抗齿槽力矩表大小
 #define Encoder_DT FOC_CONTROL_PERIOD // 编码器更新周期
-#define PLL_BANDWIDTH 1000  // PLL带宽
+#define PLL_BANDWIDTH (FOC_CONTROL_FREQ / 20)  // PLL带宽
 
 // 定义检测信息
 #define DETECTINGRESISTANCE_KI 12.0F // 检测电机电阻积分增益

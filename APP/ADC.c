@@ -122,9 +122,9 @@ void adc_config(void)
     adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 2); // 转换通道数量
 
     // 配置ADC通道转换顺序，采样时间(转换时间=采样时间+12.5个时钟周期=14个时钟周期=14/30MHz=0.466us)
-    adc_inserted_channel_config(ADC1, 0, ADC_CHANNEL_6, ADC_SAMPLETIME_7POINT5);    // U相电流
-    // adc_inserted_channel_config(ADC0, 1, ADC_CHANNEL_7, ADC_SAMPLETIME_1POINT5);    // V相电流
-    adc_inserted_channel_config(ADC1, 1, ADC_CHANNEL_8, ADC_SAMPLETIME_7POINT5);    // W相电流
+    adc_inserted_channel_config(ADC1, 0, ADC_CHANNEL_6, ADC_SAMPLETIME_7POINT5);   // U相电流
+    // adc_inserted_channel_config(ADC0, 1, ADC_CHANNEL_7, ADC_SAMPLETIME_1POINT5); // V相电流
+    adc_inserted_channel_config(ADC1, 1, ADC_CHANNEL_8, ADC_SAMPLETIME_7POINT5);   // W相电流
 
     adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_EXTTRIG_INSERTED_T0_CH3);   // 定时器0通道3上升沿触发
     adc_external_trigger_config(ADC1, ADC_INSERTED_CHANNEL, ENABLE); // 注入组使能
