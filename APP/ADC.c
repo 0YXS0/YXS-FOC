@@ -4,19 +4,26 @@
 #include "gd32f30x_rcu.h"
 #include "gd32f30x_dma.h"
 
+#include "Filter.h"
 #include "Delay.h"
 
-#define GAIN 20.0F  // 电流采样芯片放大倍数
-#define REFERENCE 1.2F  // 芯片内部参考电压1.2V
+#define SAMPLING_CHIP_GAIN 20.0F    // 采样芯片放大倍数
 #define RESISTANCE 0.005F   // 采样电阻5mΩ
-static const float Gain = GAIN * RESISTANCE;  // 电流采样电压增益
-static uint16_t Offset_U = 0, Offset_W = 0;//电机U、V、W相电流偏置
-static float Reference_Gain = 0;	//电源电压,单片机内部参考电压,内部参考电压增益
+#define GAIN (SAMPLING_CHIP_GAIN * RESISTANCE)  // 电流采样电压增益
+#define REFERENCE 1.2F  // 芯片内部参考电压1.2V
+static uint16_t Offset_U = 0, Offset_W = 0;//电机U、W相电流偏置
+static float ReferenceGain = 0;  // 电压增益
 
 #define VALUE_NUM 2 // 采样值数量
 static uint16_t adcRawValue[VALUE_NUM] = { 0, 0 };
-static const uint16_t* Power_ADC_Value = adcRawValue + 0;   // 电源电压采样值
-static const uint16_t* Reference_ADC_Value = adcRawValue + 1;   //内部参考电压采样值
+static const uint16_t* const Power_ADC_Value = adcRawValue + 0;   // 电源电压采样值
+static const uint16_t* const Reference_ADC_Value = adcRawValue + 1;   // 内部参考电压采样值
+
+/// @brief 滤波器参数
+FirstOrderFilterInfo FilterInfo_U = { 0.8F,0.2F, 0 };	// 电机U相电流一阶互补滤波器参数
+FirstOrderFilterInfo FilterInfo_W = { 0.8F,0.2F, 0 };	// 电机W相电流一阶互补滤波器参数
+// FirstOrderFilterInfo FilterInfo_Power = { 0.8F,0.2F, 0 };	// 电源电压一阶互补滤波器参数
+MoveAverageFilterInfo FilterInfo_Power = { 10, 0, 0, 0 };	// 电机角度中值滤波器参数
 
 /// @brief ADC_DMA配置
 /// @param adc_value ADC采样值存放地址
@@ -66,23 +73,26 @@ void adc0_config(void)
     gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_5); // 电源电压
 
     adc_deinit(ADC0);
+    adc_mode_config(ADC_DAUL_INSERTED_PARALLEL); // 工作模式:ADC0和ADC1工作在插入并行模式
     /*------------------ADC工作模式配置------------------*/
-    // 独立模式
-    adc_mode_config(ADC_MODE_FREE);
     adc_special_function_config(ADC0, ADC_SCAN_MODE, ENABLE);   // 使能扫描模式
     adc_tempsensor_vrefint_enable( );// 使能内部温度传感器和内部参考电压
 
     // 结果转换右对齐
     adc_data_alignment_config(ADC0, ADC_DATAALIGN_RIGHT);
-    // 转换通道数量
-    adc_channel_length_config(ADC0, ADC_REGULAR_CHANNEL, 2);
 
-    // 配置ADC通道转换顺序，采样时间为55.5个时钟周期
+    // 规则组配置
+    adc_channel_length_config(ADC0, ADC_REGULAR_CHANNEL, 2);    // 转换通道数量
     adc_regular_channel_config(ADC0, 0, ADC_CHANNEL_5, ADC_SAMPLETIME_239POINT5);    // 电源电压
-    adc_regular_channel_config(ADC0, 1, ADC_CHANNEL_17, ADC_SAMPLETIME_239POINT5);   // 单片机内部参考电压
-
+    adc_regular_channel_config(ADC0, 1, ADC_CHANNEL_17, ADC_SAMPLETIME_239POINT5);   // 内部参考电压
     adc_external_trigger_source_config(ADC0, ADC_REGULAR_CHANNEL, ADC0_1_2_EXTTRIG_REGULAR_NONE);   // 软件触发
     adc_external_trigger_config(ADC0, ADC_REGULAR_CHANNEL, ENABLE); // 规则组使能
+
+    // 注入组配置
+    adc_channel_length_config(ADC0, ADC_INSERTED_CHANNEL, 1);   // 转换通道数量
+    adc_inserted_channel_config(ADC0, 0, ADC_CHANNEL_6, ADC_SAMPLETIME_7POINT5);   // U相电流
+    adc_external_trigger_source_config(ADC0, ADC_INSERTED_CHANNEL, ADC0_1_EXTTRIG_INSERTED_T0_CH3);   // 定时器0通道3上升沿触发
+    adc_external_trigger_config(ADC0, ADC_INSERTED_CHANNEL, ENABLE); // 注入组使能
 
     adc_dma_mode_enable(ADC0);  // 使能DMA模式
     // 使能ADC
@@ -112,21 +122,20 @@ void adc_config(void)
     // gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_7); // V相电流
     gpio_init(GPIOB, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_0); // W相电流
 
-    adc_deinit(ADC1);   // 复位ADC0
+    adc_deinit(ADC1);   // 复位ADC1
     /*------------------ADC工作模式配置------------------*/
-    adc_mode_config(ADC_MODE_FREE); // 独立模式
     adc_special_function_config(ADC1, ADC_SCAN_MODE, ENABLE);   // 使能扫描模式
-    // adc_special_function_config(ADC0, ADC_CONTINUOUS_MODE, ENABLE);  // 使能连续转换模式
+    // adc_special_function_config(ADC1, ADC_CONTINUOUS_MODE, ENABLE);  // 使能连续转换模式
 
     adc_data_alignment_config(ADC1, ADC_DATAALIGN_RIGHT);// 结果转换右对齐
-    adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 2); // 转换通道数量
+
+    // 注入组配置
+    adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 1); // 转换通道数量
 
     // 配置ADC通道转换顺序，采样时间(转换时间=采样时间+12.5个时钟周期=14个时钟周期=14/30MHz=0.466us)
-    adc_inserted_channel_config(ADC1, 0, ADC_CHANNEL_6, ADC_SAMPLETIME_7POINT5);   // U相电流
-    // adc_inserted_channel_config(ADC0, 1, ADC_CHANNEL_7, ADC_SAMPLETIME_1POINT5); // V相电流
-    adc_inserted_channel_config(ADC1, 1, ADC_CHANNEL_8, ADC_SAMPLETIME_7POINT5);   // W相电流
+    adc_inserted_channel_config(ADC1, 0, ADC_CHANNEL_8, ADC_SAMPLETIME_239POINT5);   // W相电流
 
-    adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_EXTTRIG_INSERTED_T0_CH3);   // 定时器0通道3上升沿触发
+    adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_2_EXTTRIG_INSERTED_NONE);  // 软件触发
     adc_external_trigger_config(ADC1, ADC_INSERTED_CHANNEL, ENABLE); // 注入组使能
 
     adc_interrupt_enable(ADC1, ADC_INT_EOIC);  // 使能ADC1转换完成中断
@@ -137,42 +146,53 @@ void adc_config(void)
     adc_calibration_enable(ADC1); // 使能ADC校准
 }
 
-/// @brief 获取ADC未滤波采样转化值
-/// @param channel ADC通道
-/// @return ADC原始采样值
-float adc_getRawValue(const ADC_Channel channel)
-{
-    switch (channel)
-    {
-    case _U_Value:  // U相电流
-        return (((adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_0) - Offset_U) * Reference_Gain)) / Gain;
-        // case _V_Value:  // V相电流
-        //     return (((adc_inserted_data_read(ADC0, ADC_INSERTED_CHANNEL_1) - Offset_V) * Reference_Gain)) / Gain;
-    case _W_Value:  // W相电流
-        return (((adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_1) - Offset_W) * Reference_Gain)) / Gain;
-    case _Power_Value:  // 电源电压
-        adc_software_trigger_enable(ADC0, ADC_REGULAR_CHANNEL); // 软件触发ADC转换
-        while (dma_flag_get(DMA0, DMA_CH0, DMA_FLAG_FTF) == RESET);  // 等待转换完成
-        return *Power_ADC_Value * Reference_Gain * 6.1F; // 电压分压比为51:10
-    default:
-        return 0;
-    }
-}
-
 /// @brief 初始化电机U、V、W相电流和电源电压偏置
 void adc_OffsetConfig(void)
 {
-    uint32_t sum_U = 0, sum_W = 0, sum_Reference = 0;
+    uint32_t sum_U = 0, sum_W = 0;
     for (uint8_t i = 0; i < 200; i++)
     {
-        adc_software_trigger_enable(ADC0, ADC_REGULAR_CHANNEL); // 软件触发ADC转换
-        Delay_ms(1);//延时1ms
-        sum_U += adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_0);
-        sum_W += adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_1);
-        sum_Reference += *Reference_ADC_Value;
+        Delay_us(10);//延时10us
+        sum_U += adc_inserted_data_read(ADC0, ADC_INSERTED_CHANNEL_0);
+        sum_W += adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_0);
     }
     Offset_U = sum_U / 200;
     Offset_W = sum_W / 200;
-    Reference_Gain = REFERENCE / (sum_Reference / 200.0F);  // 内部参考电压增益
 }
 
+// /// @brief 获取ADC未滤波采样转化值
+// /// @param channel ADC通道
+// /// @return ADC原始采样值
+// float adc_getRawValue(const ADC_Channel channel)
+// {
+//     switch (channel)
+//     {
+//     case _U_Value:  // U相电流
+//         return (((adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_0) - Offset_U) * Reference_Gain)) / Gain;
+//     case _W_Value:  // W相电流
+//         return (((adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_1) - Offset_W) * Reference_Gain)) / Gain;
+//     case _Power_Value:  // 电源电压
+//         adc_software_trigger_enable(ADC0, ADC_REGULAR_CHANNEL); // 软件触发ADC转换
+//         while (dma_flag_get(DMA0, DMA_CH0, DMA_FLAG_FTF) == RESET);  // 等待转换完成
+//         return *Power_ADC_Value * Reference_Gain * 6.1F; // 电压分压比为51:10
+//     default:
+//         return 0;
+//     }
+// }
+
+/// @brief 获取电机U、V、W相电流
+/// @param motor 电机信息
+void getMotorCurrent(MotorInfo* info)
+{
+    info->Ia = FirstOrderFilter(&FilterInfo_U, (adc_inserted_data_read(ADC0, ADC_INSERTED_CHANNEL_0) - Offset_U) * ReferenceGain / GAIN);
+    info->Ic = FirstOrderFilter(&FilterInfo_W, (adc_inserted_data_read(ADC1, ADC_INSERTED_CHANNEL_0) - Offset_W) * ReferenceGain / GAIN);
+    info->Ib = -info->Ia - info->Ic;
+}
+
+void getPowerVoltage(float* PowerVoltage)
+{
+    adc_software_trigger_enable(ADC0, ADC_REGULAR_CHANNEL); // 软件触发ADC转换
+    while (dma_flag_get(DMA0, DMA_CH0, DMA_FLAG_FTF) == RESET);  // 等待转换完成
+    ReferenceGain = REFERENCE / *Reference_ADC_Value; // 电压增益
+    *PowerVoltage = MoveAverageFilter(&FilterInfo_Power, (*Power_ADC_Value * ReferenceGain * 6.1F)); // 电压分压比为51:10
+}
