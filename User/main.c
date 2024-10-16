@@ -30,11 +30,6 @@ uint8_t PrintfDebugInfoFlag = 0;	// 打印调试信息标志位
 SystemConfigInfo const* const SystemInfo = (SystemConfigInfo*)(SYSTEM_CONFIG_INFO_ADDR);	// 系统配置信息存储地址
 uint8_t const* const ConfigChangedFlag = (const uint8_t*)(CONFIG_CHANGED_FLAG_ADDR);	// 配置改变标志位(为0代表配置已经被更新过)
 
-FirstOrderFilterInfo FilterInfo_U = { 0.8F,0.2F, 0 };	// 电机U相电流一阶互补滤波器参数
-FirstOrderFilterInfo FilterInfo_W = { 0.8F,0.2F, 0 };	// 电机W相电流一阶互补滤波器参数
-// FirstOrderFilterInfo FilterInfo_Power = { 0.8F,0.2F, 0 };	// 电源电压一阶互补滤波器参数
-MoveAverageFilterInfo FilterInfo_Power = { 10, 0, 0, 0 };	// 电机角度中值滤波器参数
-
 MotorInfo motor = {
 	.mode = MM_NULL,
 	.MotorID = 0x01,
@@ -58,12 +53,12 @@ MotorInfo motor = {
 	.ErrorInfo = Error_Null,
 };
 
-// 获取电机U相电流滤波后的值
-static inline float get_U_Value(void) { return FirstOrderFilter(&FilterInfo_U, adc_getRawValue(_U_Value)); }
-// 获取电机W相电流滤波后的值
-static inline float get_W_Value(void) { return FirstOrderFilter(&FilterInfo_W, adc_getRawValue(_W_Value)); }
-// 获取电源电压滤波后的值
-static inline float get_Power_Value(void) { return MoveAverageFilter(&FilterInfo_Power, adc_getRawValue(_Power_Value)); }
+// // 获取电机U相电流滤波后的值
+// static inline float get_U_Value(void) { return FirstOrderFilter(&FilterInfo_U, adc_getRawValue(_U_Value)); }
+// // 获取电机W相电流滤波后的值
+// static inline float get_W_Value(void) { return FirstOrderFilter(&FilterInfo_W, adc_getRawValue(_W_Value)); }
+// // 获取电源电压滤波后的值
+// static inline float get_Power_Value(void) { return MoveAverageFilter(&FilterInfo_Power, adc_getRawValue(_Power_Value)); }
 
 /// 从Flash中读取系统配置信息,并更新给电机 
 void MotorInfoUpdate(void)
@@ -219,18 +214,18 @@ int main( )
 
 	gpio_init(GPIOA, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_1);	// 测试引脚
 
-	for (size_t i = 0; i < 1000; i++)
-	{/// 确保的到稳定的电源电压(低通滤波器需要一定时间才能稳定)
-		motor.Udc = get_Power_Value( );	// 获取电源电压
-	}
-	CheckMotorInfoVality(&motor, 1);	// 检测电机信息有效性并更新PID参数
+	// for (size_t i = 0; i < 100; i++)
+	// {/// 确保的到稳定的电源电压(滤波器需要一定时间才能稳定)
+	// 	getPowerVoltage(&motor.Udc);	// 获取电源电压
+	// }
+	// CheckMotorInfoVality(&motor, 1);	// 检测电机信息有效性并更新PID参数
 	if (getEncoderRawCount(&Value) < 0)	// 编码器读取错误
 		motor.ErrorInfo = Error_EncoderReadError;
 	else
 		nvic_irq_enable(ADC0_1_IRQn, 0, 1); // 使能ADC0_1中断
 	while (1)
 	{
-		motor.Udc = get_Power_Value( );	// 获取电源电压
+		getPowerVoltage(&motor.Udc);	// 获取电源电压
 		CheckMotorInfoVality(&motor, 0);	// 检测电机信息有效性并更新PID参数
 		if (motor.Udc < 11.40F)
 			motor.WarningInfo = Warning_PowerLowVoltage;
@@ -323,7 +318,7 @@ void SpeedOpenloop(void)
 void ADC0_1_IRQHandler(void)
 {
 	static int ret = 0;
-	static float OpenLoopTargetAngle = 0.0F;
+	static float OpenLoopTargetAngle = 0.0F, Current = 0;
 
 	if (adc_interrupt_flag_get(ADC1, ADC_INT_FLAG_EOIC) == RESET)
 	{/// 出现未知中断
@@ -337,15 +332,13 @@ void ADC0_1_IRQHandler(void)
 
 	gpio_bit_set(GPIOA, GPIO_PIN_1);	// 测试用
 
+	getMotorCurrent(&motor);	// 获取电机U、V、W相电流
 	if (Encoder_UpdateValue( ) < 0)	// 更新编码器值
 	{
 		ClosePWM( );	// 关闭PWM
 		motor.mode = MM_Error;
 		motor.ErrorInfo = Error_EncoderReadError;
 	}
-	motor.Ia = get_U_Value( );	// 获取电机U相电流
-	motor.Ic = get_W_Value( );	// 获取电机W相电流
-	motor.Ib = -motor.Ia - motor.Ic;	// 获取电机V相电流
 
 	switch (motor.mode)
 	{
@@ -411,8 +404,10 @@ CurrentControl:
 		Clarke_Transf(&motor);	// Clarke变换
 		Park_Transf(&motor);	// Park变换
 		if (motor.mode != MM_AnticoggingCalibration && motor.AnticoggingCalibratedFlag == 1)// 抗齿槽力矩补偿
-			motor.TargetCurrent += motor.AnticogongTorqueTable[(uint32_t)roundf((float)Encoder.RawCount / ANTICOGING_INCREMENT)];
-		PIDSingleCalc(&motor.PIDInfoIQ, motor.TargetCurrent, motor.Iq);	// Iq控制
+			Current = motor.TargetCurrent + motor.AnticogongTorqueTable[(uint32_t)roundf((float)Encoder.RawCount / ANTICOGING_INCREMENT)];
+		else
+			Current = motor.TargetCurrent;
+		PIDSingleCalc(&motor.PIDInfoIQ, Current, motor.Iq);	// Iq控制
 		motor.Uq = motor.PIDInfoIQ.output;	// 设置Uq
 		PIDSingleCalc(&motor.PIDInfoID, 0.0F, motor.Id);	// Id控制
 		motor.Ud = motor.PIDInfoID.output;	// 设置Ud

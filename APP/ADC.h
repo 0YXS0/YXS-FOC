@@ -1,7 +1,7 @@
 #ifndef __ADC_H
 #define __ADC_H
 
-#include "gd32f30x.h"
+#include "Motor.h"
 
 typedef enum
 {
@@ -13,8 +13,9 @@ typedef enum
 }ADC_Channel;
 
 void adc_config(void);  //ADC初始化配置
-float adc_getRawValue(const ADC_Channel channel);  //获取ADC采样值
 void adc_OffsetConfig(void);  //初始化电机U、V、W相电流和电源电压偏置
+void getMotorCurrent(MotorInfo* motor);  //获取电机U、V、W相电流
+void getPowerVoltage(float* PowerVoltage);  //获取电源电压
 
 #endif /* __ADC_H */
 
