@@ -24,7 +24,7 @@
 #define PLL_BANDWIDTH (FOC_CONTROL_FREQ / 20)  // PLL带宽
 
 // 定义检测信息
-#define DETECTINGRESISTANCE_KI 12.0F // 检测电机电阻积分增益
+#define DETECTINGRESISTANCE_KI 20.0F // 检测电机电阻积分增益
 
 typedef enum
 {

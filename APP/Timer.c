@@ -1,6 +1,7 @@
 #include "Timer.h"
 #include "gd32f30x.h"
 #include "gd32f30x_timer.h"
+#include "main.h"
 
 void timer_gpio_config(void)
 {
@@ -50,10 +51,10 @@ void timer_config(uint16_t prescaler, uint32_t period)
 
     //配置PWM参数
     timer_oc_parameter_struct pwm_structure;
-    pwm_structure.ocidlestate = TIMER_OC_IDLE_STATE_HIGH;    //空闲状态为低电平
-    pwm_structure.ocnidlestate = TIMER_OCN_IDLE_STATE_HIGH;  //空闲状态为低电平
-    pwm_structure.ocpolarity = TIMER_OC_POLARITY_LOW;      //有效电平为高电平
-    pwm_structure.ocnpolarity = TIMER_OCN_POLARITY_LOW;    //有效电平为高电平
+    pwm_structure.ocidlestate = TIMER_OC_IDLE_STATE_LOW;    //空闲状态为低电平
+    pwm_structure.ocnidlestate = TIMER_OCN_IDLE_STATE_LOW;  //空闲状态为低电平
+    pwm_structure.ocpolarity = TIMER_OC_POLARITY_HIGH;      //有效电平为高电平
+    pwm_structure.ocnpolarity = TIMER_OCN_POLARITY_HIGH;    //有效电平为高电平
     pwm_structure.outputstate = TIMER_CCX_ENABLE;       //输出使能
     pwm_structure.outputnstate = TIMER_CCXN_ENABLE;     //输出使能
 
@@ -65,7 +66,7 @@ void timer_config(uint16_t prescaler, uint32_t period)
     timer_channel_output_mode_config(TIMER0, TIMER_CH_0, TIMER_OC_MODE_PWM1);   //PWM模式1
     timer_channel_output_mode_config(TIMER0, TIMER_CH_1, TIMER_OC_MODE_PWM1);   //PWM模式1
     timer_channel_output_mode_config(TIMER0, TIMER_CH_2, TIMER_OC_MODE_PWM1);   //PWM模式1
-    timer_channel_output_mode_config(TIMER0, TIMER_CH_3, TIMER_OC_MODE_PWM1);   //PWM模式1
+    timer_channel_output_mode_config(TIMER0, TIMER_CH_3, TIMER_OC_MODE_PWM0);   //PWM模式0
     //使能影子寄存器
     timer_channel_output_shadow_config(TIMER0, TIMER_CH_0, TIMER_OC_SHADOW_ENABLE);
     timer_channel_output_shadow_config(TIMER0, TIMER_CH_1, TIMER_OC_SHADOW_ENABLE);
@@ -75,7 +76,7 @@ void timer_config(uint16_t prescaler, uint32_t period)
     timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, 0);   //占空比
     timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, 0);   //占空比
     timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, 0);   //占空比
-    timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_3, 750);   //占空比
+    timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_3, TIMER_PERIOD / 2);   //占空比
 
     timer_channel_output_state_config(TIMER0, TIMER_CH_0, TIMER_CCX_DISABLE);
     timer_channel_output_state_config(TIMER0, TIMER_CH_1, TIMER_CCX_DISABLE);

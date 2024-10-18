@@ -15,7 +15,7 @@ typedef enum
 void adc_config(void);  //ADC初始化配置
 void adc_OffsetConfig(void);  //初始化电机U、V、W相电流和电源电压偏置
 void getMotorCurrent(MotorInfo* motor);  //获取电机U、V、W相电流
-void getPowerVoltage(float* PowerVoltage);  //获取电源电压
+void getPowerVoltageAndTemp(float* PowerVoltage, float* Temp);  //获取电源电压
 
 #endif /* __ADC_H */
 

@@ -3,6 +3,7 @@
 #include "stdlib.h"
 
 extern MotorInfo motor;   //电机信息
+extern float OpenLoopTargetSpeed;  //开环目标速度
 extern uint8_t PrintfConfigInfoFlag;    //打印配置信息标志位
 extern uint8_t PrintfDebugInfoFlag;    //打印调试信息标志位
 void SystemConfigInfoUpdate(void);
@@ -30,8 +31,13 @@ void UsartCommandAnalyze(char* data)
     case 'A' << 8 | 'C':  // 抗齿槽力矩校准
         motor.mode = MM_AnticoggingCalibration;
         break;
-    case 'O' << 8 | 'L':  // 开环控制
-        motor.mode = MM_OpenLoop;
+    case 'V' << 8 | 'F':  // 开环VF控制
+        motor.mode = MM_OpenLoopVF;
+        OpenLoopTargetSpeed = strtof(data + 2, NULL);
+        break;
+    case 'I' << 8 | 'F':  // 开环IF控制
+        motor.mode = MM_OpenLoopIF;
+        OpenLoopTargetSpeed = strtof(data + 2, NULL);
         break;
     case 'U' << 8 | 'P':  // 更新系统配置信息
         SystemConfigInfoUpdate( );

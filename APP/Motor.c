@@ -51,23 +51,20 @@ void ClosePWM(void)
 /// @param motor 电机信息
 static inline void setPWM(MotorInfo* motor)	//设置PWM
 {
-    int32_t Pulse = MAX(motor->PulseA, motor->PulseB);
-    Pulse = MAX(Pulse, motor->PulseC);
     if (motor->Direction == 1)  // 正转
     {
         // 设置占空比
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, motor->MAXPulse - motor->PulseA); // U相
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, motor->MAXPulse - motor->PulseB); // V相
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, motor->MAXPulse - motor->PulseC); // W相
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, motor->PulseA); // U
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, motor->PulseB); // V
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, motor->PulseC); // W
     }
     else if (motor->Direction == -1)    // 反转
     {
         // 设置占空比
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, motor->MAXPulse - motor->PulseA); // U相
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, motor->MAXPulse - motor->PulseC); // V相
-        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, motor->MAXPulse - motor->PulseB); // W相
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, motor->PulseA); // U
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, motor->PulseC); // V
+        timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_2, motor->PulseB); // W
     }
-    Pulse = MIN(Pulse + 75, 990);
     timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_3, 10); // ADC采样控制PWM
 }
 
@@ -201,16 +198,6 @@ void SVPWM(MotorInfo* info)
 /// @param info 电机信息
 void ApplyMotorInfo(MotorInfo* info)
 {
-    // // 防止超调
-    // float ScaleFactor = 0.80F * SQRT3_DIV_2 / sqrtf(info->Uq * info->Uq + info->Ud * info->Ud);
-    // if (ScaleFactor < _2_DIV_3 / info->Udc)
-    // {
-    //     info->Uq *= ScaleFactor;
-    //     info->Ud *= ScaleFactor;
-    // }
-
-    if (info->mode != MM_CurrentControl && info->mode != MM_SpeedControl && info->mode != MM_PositionControl)
-        fast_sin_cos(info->Angle, &info->sinValue, &info->cosValue); //计算角度sin
     Rev_Park_Transf(info);  // 逆Park变换
     SVPWM(info);    // SVPWM
     LIMIT(info->PulseA, 0, info->MAXPulse);
@@ -234,6 +221,7 @@ int8_t DetectingResistance(MotorInfo* info, float DetectingCurrent, float MaxDet
         LoopCount = 0;
         info->Ud = 0.0F;
         info->Uq = 0.0F;
+        info->Direction = 1;
         info->Angle = 0.0F;
         OpenPWM( );
         Flag = 1;
@@ -251,10 +239,10 @@ int8_t DetectingResistance(MotorInfo* info, float DetectingCurrent, float MaxDet
             MM_printf("DetectingResistance-Voltage exceeds the limit\n");
             break;
         }
+        fast_sin_cos(info->Angle, &info->sinValue, &info->cosValue); //计算角度sin
         ApplyMotorInfo(info);   //将电机信息应用到电机
         if (LoopCount++ >= FOC_CONTROL_FREQ * 6)
         {/// 到达最大检测时间
-            ClosePWM( );
             if ((DetectingCurrent - ABS(info->Ib)) / DetectingCurrent > 0.1F)
             {
                 ret = -2;   /// 电流误差大于10%
@@ -269,6 +257,7 @@ int8_t DetectingResistance(MotorInfo* info, float DetectingCurrent, float MaxDet
                 MM_printf("DetectingResistance-Success\nResistance:%.6f\n", info->Resistance);
                 ret = 1;
             }
+            ClosePWM( );
             info->Ud = 0.0F;
             Flag = 0;
         }
@@ -301,8 +290,10 @@ int8_t DetectingInductance(MotorInfo* info, float DetectingVoltage)
         Current[1] = 0.0F;
         info->Ud = -DetectingVoltage;
         info->Uq = 0.0F;
+        info->Direction = 1;
         info->Angle = 0.0F;
         OpenPWM( );
+        fast_sin_cos(info->Angle, &info->sinValue, &info->cosValue); //计算角度sin
         ApplyMotorInfo(info);
         LoopCount = 0;
         State = 1;
@@ -320,6 +311,7 @@ int8_t DetectingInductance(MotorInfo* info, float DetectingVoltage)
             Current[1] += info->Ib;
             info->Ud = DetectingVoltage;
         }
+        fast_sin_cos(info->Angle, &info->sinValue, &info->cosValue); //计算角度sin
         ApplyMotorInfo(info);
         if (LoopCount >= FOC_CONTROL_FREQ)
         {/// 达到最大检测时间
@@ -370,6 +362,7 @@ int8_t EncoderOffsetCalibration(MotorInfo* info)
         CalibratingVoltage = info->MaxCurrent * info->Resistance * _1_DIV_3;
         info->Uq = CalibratingVoltage;
         OpenPWM( );
+        fast_sin_cos(info->Angle, &info->sinValue, &info->cosValue); //计算角度sin
         ApplyMotorInfo(info);
         if (LoopCount == 0)
             MM_printf("EncoderOffsetCalibration-Start\n");
@@ -383,6 +376,7 @@ int8_t EncoderOffsetCalibration(MotorInfo* info)
     case 1: // 转动16PI
         AccAngle += CALIBRAATING_SPEED * FOC_CONTROL_PERIOD;
         info->Angle = fmodf(AccAngle, _2PI);
+        fast_sin_cos(info->Angle, &info->sinValue, &info->cosValue); //计算角度sin
         ApplyMotorInfo(info);
         if (++LoopCount % 10 == 0) AccCount += Encoder.AccCount;
         if (LoopCount > FOC_CONTROL_FREQ * EOC_NUM)
@@ -419,6 +413,7 @@ int8_t EncoderOffsetCalibration(MotorInfo* info)
     case 3: // 反转
         AccAngle -= CALIBRAATING_SPEED * FOC_CONTROL_PERIOD;
         info->Angle = fmodf(AccAngle, _2PI);
+        fast_sin_cos(info->Angle, &info->sinValue, &info->cosValue); //计算角度sin
         ApplyMotorInfo(info);
         if (++LoopCount % 10 == 0) AccCount += Encoder.AccCount;
         if (LoopCount > FOC_CONTROL_FREQ * EOC_NUM)
@@ -458,7 +453,7 @@ int8_t AnticoggingCalibration(MotorInfo* info)
     static int8_t ret = 0;
     static uint8_t State = 0;
     static uint32_t index = 0, LoopCount = 0;
-    static float Diff = 0.0F, Increment = 0.0F;
+    static float Diff = 0.0F, Increment = 0.0F, Ki = 0.0F;
 
     switch (State)
     {
@@ -470,21 +465,26 @@ int8_t AnticoggingCalibration(MotorInfo* info)
         info->AnticoggingCalibratedFlag = 0;
         Increment = (float)(ANTICOGING_INCREMENT) / (float)(ENCODER_PULSE + 1) * _2PI;
         info->TargetPosition = -(Encoder.RawCount / ENCODER_PULSE * _2PI);
+        Ki = info->PIDInfoSpeed.Ki;
         State = 1;
         MM_printf("AnticoggingCalibration-Start\n");
         break;
     case 1:
         Diff = info->TargetPosition - Encoder.AccAngle; // 计算角度差
-        if (fabsf(Diff) < Increment / 2.0F && fabsf(Encoder.Speed) < 0.3F)
+        if (fabsf(Diff) < Increment / 2.0F && fabsf(Encoder.Speed) < 0.15F && LoopCount > FOC_CONTROL_FREQ / 10U)
         {/// 到达目标位置
             info->AnticogongTorqueTable[index++] = info->PIDInfoSpeed.integral * info->PIDInfoSpeed.Ki; // 记录校准力矩
             MM_printf("index:%d, Torque:%.6f\n", index - 1, info->AnticogongTorqueTable[index - 1]);
             info->TargetPosition += Increment;  // 下一个目标位置
             LoopCount = 0;  // 重置计数
+            info->PIDInfoSpeed.Ki = Ki; // 重置积分增益
         }
         else/// 未到达目标位置
+        {
             LoopCount++;
-        if (LoopCount >= FOC_CONTROL_FREQ * 30)
+            if (LoopCount % (FOC_CONTROL_FREQ / 10) == 0) info->PIDInfoSpeed.Ki += Ki * 0.01F; // 增加积分增益
+        }
+        if (LoopCount >= FOC_CONTROL_FREQ * 10)
         {/// 超时
             State = 0;
             ret = -1;
@@ -498,6 +498,7 @@ int8_t AnticoggingCalibration(MotorInfo* info)
         break;
     case 2:
         ret = 1;
+        info->PIDInfoSpeed.Ki = Ki; // 重置积分增益
         info->AnticoggingCalibratedFlag = 1;
         State = 0;
         MM_printf("AnticoggingCalibration-Success\n");
@@ -505,6 +506,7 @@ int8_t AnticoggingCalibration(MotorInfo* info)
     default:
         State = 0;
         ret = -1;
+        Ki = info->PIDInfoSpeed.Ki; // 重置积分增益
         MM_printf("AnticoggingCalibration-Unknown error\n");
         break;
     }
@@ -522,7 +524,7 @@ void UpdatePIDInfo(MotorInfo* info)
     info->PIDInfoIQ.maxOutput = info->MaxCurrent * info->Resistance;
     if (info->PIDInfoIQ.Ki == 0.0F) info->PIDInfoIQ.maxIntegral = 0.0F;
     else
-        info->PIDInfoIQ.maxIntegral = info->PIDInfoIQ.maxOutput * _2_DIV_3 / ABS(info->PIDInfoIQ.Ki);
+        info->PIDInfoIQ.maxIntegral = info->PIDInfoIQ.maxOutput * _1_DIV_3 / ABS(info->PIDInfoIQ.Ki);
 
     info->PIDInfoID.Kp = info->PIDInfoIQ.Kp;
     info->PIDInfoID.Ki = info->PIDInfoIQ.Ki;
@@ -534,13 +536,13 @@ void UpdatePIDInfo(MotorInfo* info)
     info->PIDInfoSpeed.maxOutput = info->MaxCurrent;
     if (info->PIDInfoSpeed.Ki == 0.0F) info->PIDInfoSpeed.maxIntegral = 0.0F;
     else
-        info->PIDInfoSpeed.maxIntegral = info->PIDInfoSpeed.maxOutput * _2_DIV_3 / ABS(info->PIDInfoSpeed.Ki);
+        info->PIDInfoSpeed.maxIntegral = info->PIDInfoSpeed.maxOutput * _1_DIV_3 / ABS(info->PIDInfoSpeed.Ki);
 
     /// 位置环PID参数
     info->PIDInfoPosition.maxOutput = info->MaxSpeed;
     if (info->PIDInfoPosition.Ki == 0.0F) info->PIDInfoPosition.maxIntegral = 0.0F;
     else
-        info->PIDInfoPosition.maxIntegral = info->PIDInfoPosition.maxOutput * _2_DIV_3 / ABS(info->PIDInfoPosition.Ki);
+        info->PIDInfoPosition.maxIntegral = info->PIDInfoPosition.maxOutput * _1_DIV_3 / ABS(info->PIDInfoPosition.Ki);
 }
 
 /// @brief 检测电机信息有效性并更新PID参数
@@ -608,21 +610,21 @@ void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag)
         info->mode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
-    // 检查电源电压
-    if (info->Udc < 11.15F) // 电源电压低于11.20V
-    {
-        info->mode = MM_Error;
-        if (info->ErrorInfo == Error_Null)
-            info->ErrorInfo = Error_PowerLowVoltage;
-        if (PrintfFlag == 1)
-            MM_printf("CheckMotorInfoVality-PowerLowVoltage:%.6f\n", info->Udc);
-        return;
-    }
-    else if (info->ErrorInfo == Error_PowerLowVoltage)
-    {
-        info->mode = MM_NULL;
-        info->ErrorInfo = Error_Null;
-    }
+    // // 检查电源电压
+    // if (info->Udc < 11.20F) // 电源电压低于11.20V
+    // {
+    //     info->mode = MM_Error;
+    //     if (info->ErrorInfo == Error_Null)
+    //         info->ErrorInfo = Error_PowerLowVoltage;
+    //     if (PrintfFlag == 1)
+    //         MM_printf("CheckMotorInfoVality-PowerLowVoltage:%.6f\n", info->Udc);
+    //     return;
+    // }
+    // else if (info->ErrorInfo == Error_PowerLowVoltage)
+    // {
+    //     info->mode = MM_NULL;
+    //     info->ErrorInfo = Error_Null;
+    // }
 
     if (info->Udc > 16.80F)    // 电源电压高于16.80V
     {
@@ -638,21 +640,21 @@ void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag)
         info->mode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
-    // 检查最大电流
-    if (info->MaxCurrent > info->Udc / info->Resistance)
-    {
-        info->mode = MM_Error;
-        if (info->ErrorInfo == Error_Null)
-            info->ErrorInfo = Error_MaxCurrentError;
-        if (PrintfFlag == 1)
-            MM_printf("CheckMotorInfoVality-MaxCurrentTooHigh\n");
-        return;
-    }
-    else if (info->ErrorInfo == Error_MaxCurrentError)
-    {
-        info->mode = MM_NULL;
-        info->ErrorInfo = Error_Null;
-    }
+    // // 检查最大电流
+    // if (info->MaxCurrent > info->Udc / info->Resistance)
+    // {
+    //     info->mode = MM_Error;
+    //     if (info->ErrorInfo == Error_Null)
+    //         info->ErrorInfo = Error_MaxCurrentError;
+    //     if (PrintfFlag == 1)
+    //         MM_printf("CheckMotorInfoVality-MaxCurrentTooHigh\n");
+    //     return;
+    // }
+    // else if (info->ErrorInfo == Error_MaxCurrentError)
+    // {
+    //     info->mode = MM_NULL;
+    //     info->ErrorInfo = Error_Null;
+    // }
     UpdatePIDInfo(info);    // 更新PID参数
 }
 

@@ -2,7 +2,7 @@
 #include "i2c.h"
 #include <stdio.h>
 
-#define TIMEOUT (uint32_t)0x0FFF  //超时时间
+#define TIMEOUT (uint32_t)0xFFFF  //超时时间
 
 /// @brief I2C GPIO Init
 void i2c0_gpio_config(void)
@@ -213,7 +213,7 @@ end:
 /// @param data     读取的数据
 /// @param dataSize 读取的数据长度
 /// @return 0:成功；其他:失败
-int8_t i2c_read(uint32_t I2CX, uint8_t DevAddress, uint8_t RegAddress, uint8_t* data, uint8_t dataSize)
+int8_t i2c_read(uint32_t I2CX, uint8_t DevAddress, uint8_t RegAddress, uint8_t* const data, uint8_t dataSize)
 {
     uint32_t Timeout_t = 0;
     uint8_t i = 0;

@@ -30,7 +30,7 @@ int8_t Encoder_UpdateValue(void)
 
     Encoder.DiffCount = Encoder.RawCount - Encoder.LastRawCount; // 计算计数差值
     if (Encoder.DiffCount > ENCODER_PULSE / 2) Encoder.DiffCount -= ENCODER_PULSE;  // 逆时针旋转溢出处理
-    else if (Encoder.DiffCount < -ENCODER_PULSE / 2) Encoder.DiffCount += ENCODER_PULSE;    // 顺时针旋转溢出处理
+    else if (Encoder.DiffCount < (-ENCODER_PULSE / 2)) Encoder.DiffCount += ENCODER_PULSE;    // 顺时针旋转溢出处理
 
     Encoder.AccCount += Encoder.DiffCount; // 累积计数
     Encoder.LastRawCount = Encoder.RawCount; // 更新上一次的原始计数
@@ -50,7 +50,7 @@ int8_t Encoder_UpdateValue(void)
     Encoder.EstimateSpeedCount += Encoder_DT * PLL_Ki * DeltaAccCount; // PLL积分增益
 
     char snap_to_zero_Speed = 0;    // 速度向0对齐标志
-    if (ABS(Encoder.EstimateSpeedCount) < 0.5F * Encoder_DT * PLL_Ki)
+    if (fabsf(Encoder.EstimateSpeedCount) < 0.5F * Encoder_DT * PLL_Ki)
     {
         Encoder.EstimateSpeedCount = 0.0F; // 速度小于0.5*PLL_Ki时,置零
         snap_to_zero_Speed = 1;

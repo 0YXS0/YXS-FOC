@@ -36,8 +36,8 @@ MotorInfo motor = {
 	.Direction = 1,
 	.PolePairs = 7,
 	.MAXPulse = TIMER_PERIOD,
-	.MaxCurrent = 0.8F,
-	.MaxSpeed = 120.0F,
+	.MaxCurrent = 0.80F,
+	.MaxSpeed = 60.0F,
 	.Resistance = 13.375898F,
 	.Inductance = 0.006646F,
 	.Udc = 0.0F,
@@ -184,6 +184,7 @@ void PrintfConfigInfo(void)
 	MM_printf("PolePairs:%d\n", motor.PolePairs);
 	MM_printf("Direction:%s\n", motor.Direction == 1 ? "CW" : (motor.Direction == -1 ? "CCW" : "ERROR"));
 	MM_printf("Udc:%.6f\n", motor.Udc);
+	MM_printf("Temp:%.6f\n", motor.Temp);
 	MM_printf("Resistance:%.6f\n", motor.Resistance);
 	MM_printf("Inductance:%.6f\n", motor.Inductance);
 	MM_printf("AnticoggingCalibrated:%s\n", motor.AnticoggingCalibratedFlag == 1 ? "YES" : (motor.AnticoggingCalibratedFlag == 0 ? "NO" : "ERROR"));
@@ -208,7 +209,7 @@ int main( )
 	usart_config( );	// 串口配置
 	adc_config( );	// ADC0配置，对U、V、W相电流和电源电压进行采样
 	timer_config(TIMER_PRESCALER, TIMER_PERIOD);	// PWM频率(中央对齐模式,频率减半)--(120MHz / 6 / 2 / 1000 = 10kHz)
-	Delay_ms(1);	// 延时1ms
+	Delay_ms(10);	// 延时10ms
 	adc_OffsetConfig( );	// 初始化电机U、W相电流和电源电压偏置
 	MotorInfoUpdate( );	// 从Flash中读取系统配置信息,并更新给电机
 
@@ -225,7 +226,7 @@ int main( )
 		nvic_irq_enable(ADC0_1_IRQn, 0, 1); // 使能ADC0_1中断
 	while (1)
 	{
-		getPowerVoltage(&motor.Udc);	// 获取电源电压
+		getPowerVoltageAndTemp(&motor.Udc, &motor.Temp);	// 获取电源电压
 		CheckMotorInfoVality(&motor, 0);	// 检测电机信息有效性并更新PID参数
 		if (motor.Udc < 11.40F)
 			motor.WarningInfo = Warning_PowerLowVoltage;
@@ -239,7 +240,7 @@ int main( )
 		}
 		if (PrintfDebugInfoFlag == 1)
 		{/// 打印调试信息
-			JustFloat_Show(14, motor.Ia, motor.Ib, motor.Ic, motor.TargetCurrent, motor.Iq, motor.Id, motor.TargetSpeed, Encoder.Speed, Encoder.Angle, Encoder.AccAngle, motor.Uq, motor.Ud, motor.TargetPosition, (float)Encoder.RawCount);
+			JustFloat_Show(15, motor.Ia, motor.Ib, motor.Ic, motor.TargetCurrent, motor.Iq, motor.Id, motor.TargetSpeed, Encoder.Speed, Encoder.Angle, Encoder.AccAngle, motor.Uq, motor.Ud, motor.TargetPosition, motor.PIDInfoSpeed.integral, motor.PIDInfoSpeed.output);
 		}
 	}
 }
@@ -288,8 +289,7 @@ void CurrentControl(MotorInfo* motor, float target_Iq, float angle)	//电流环�
 	SVPWM(motor);	//SVPWM
 	// setPWM(motor);	//设置PWM
 }
-*/
-static float OpenLoopTargetSpeed = 30.0F;
+
 void SpeedOpenloop(void)
 {
 	static float targetAngle = 0.0F;
@@ -308,17 +308,20 @@ void SpeedOpenloop(void)
 	// motor.Uq = motor.PIDInfoIQ.output;	//设置Uq
 	// PIDSingleCalc(&motor.PIDInfoID, 0.0F, motor.Id);	// Id控制
 	// motor.Ud = motor.PIDInfoID.output;	//设置Ud
-	fast_sin_cos(motor.Angle, &motor.sinValue, &motor.cosValue); // 计算角度sin值和cos值
-	Clarke_Transf(&motor);	// Clarke变换
-	Park_Transf(&motor);	// Park变换
+	// fast_sin_cos(motor.Angle, &motor.sinValue, &motor.cosValue); // 计算角度sin值和cos值
+	// Clarke_Transf(&motor);	// Clarke变换
+	// Park_Transf(&motor);	// Park变换
+	fast_sin_cos(motor.Angle, &motor.sinValue, &motor.cosValue); //计算角度sin
 	ApplyMotorInfo(&motor);	//将电机信息应用到电机
 }
+*/
 
+float OpenLoopTargetSpeed = 0.0F;	// 开环控制目标速度
 //ADC0中断服务函数
 void ADC0_1_IRQHandler(void)
 {
 	static int ret = 0;
-	static float OpenLoopTargetAngle = 0.0F, Current = 0;
+	static float OpenLoopTargetAngle_VF = 0.0F, Current = 0, OpenLoopTargetAngle_IF = 0.0F;
 
 	if (adc_interrupt_flag_get(ADC1, ADC_INT_FLAG_EOIC) == RESET)
 	{/// 出现未知中断
@@ -344,7 +347,8 @@ void ADC0_1_IRQHandler(void)
 	{
 	case MM_NULL:
 		ret = 0;
-		OpenLoopTargetAngle = 0.0F;
+		OpenLoopTargetAngle_VF = 0.0F;
+		OpenLoopTargetAngle_IF = 0.0F;
 		motor.TargetCurrent = 0.0F;
 		motor.TargetSpeed = 0.0F;
 		motor.TargetPosition = 0.0F;
@@ -352,7 +356,7 @@ void ADC0_1_IRQHandler(void)
 		break;
 
 	case MM_DetectingResistance:	// 检测电机电阻
-		ret = DetectingResistance(&motor, motor.MaxCurrent * _1_DIV_3, motor.Udc * _1_DIV_3);
+		ret = DetectingResistance(&motor, motor.MaxCurrent * _1_DIV_3, motor.Udc * _2_DIV_3);
 		if (ret == 1)
 		{// 检测完成
 			motor.mode = MM_NULL;
@@ -377,10 +381,21 @@ void ADC0_1_IRQHandler(void)
 		else if (ret < 0) motor.mode = MM_Error;
 		break;
 
-	case MM_OpenLoop:	// 开环控制
+	case MM_OpenLoopVF:	// 开环VF控制
+		OpenPWM( );	// 开启PWM
+		motor.Ud = 0.0F;
+		motor.Uq = motor.MaxCurrent * motor.Resistance * _1_DIV_3;
+		//计算累积目标角度
+		OpenLoopTargetAngle_VF += OpenLoopTargetSpeed * FOC_CONTROL_PERIOD * motor.PolePairs;
+		motor.Angle = fmodf(OpenLoopTargetAngle_VF, _2PI);	// 设置电机电角度
+		fast_sin_cos(motor.Angle, &motor.sinValue, &motor.cosValue); //计算角度sin
+		ApplyMotorInfo(&motor);	//将电机信息应用到电机
+		break;
+
+	case MM_OpenLoopIF:	// 开环IF控制
 		motor.TargetCurrent = 0.3F;
-		OpenLoopTargetAngle += OpenLoopTargetSpeed * FOC_CONTROL_PERIOD * motor.PolePairs;
-		motor.Angle = fmodf(OpenLoopTargetAngle, _2PI);	//限制在-2PI~2PI之间
+		OpenLoopTargetAngle_IF += OpenLoopTargetSpeed * FOC_CONTROL_PERIOD * motor.PolePairs;
+		motor.Angle = fmodf(OpenLoopTargetAngle_IF, _2PI);	//限制在-2PI~2PI之间
 		goto CurrentControl;
 
 	case MM_AnticoggingCalibration:	// 抗齿槽力矩校准

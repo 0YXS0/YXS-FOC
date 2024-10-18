@@ -6,17 +6,18 @@
 #include "PID.h"
 typedef enum
 {
-    MM_NULL = 0,	//空模式
-    MM_DetectingResistance,	//检测电机电阻
-    MM_DetectingInductance,	//检测电机电感
-    MM_EncoderCalibration,	//检测编码器
-    MM_CurrentControl,	//电流控制
-    MM_SpeedControl,	//速度控制
-    MM_PositionControl,	//位置控制
-    MM_OpenLoop,	//开环控制
-    MM_AnticoggingCalibration,	//抗齿槽力矩校准
-    MM_Error	//错误
-}MotorMode;	//电机模式
+    MM_NULL = 0,	// 空模式
+    MM_DetectingResistance,	// 检测电机电阻
+    MM_DetectingInductance,	// 检测电机电感
+    MM_EncoderCalibration,	// 检测编码器
+    MM_CurrentControl,	// 电流控制
+    MM_SpeedControl,	// 速度控制
+    MM_PositionControl,	// 位置控制
+    MM_OpenLoopVF,    // 开环VF控制
+    MM_OpenLoopIF,  // 开环IF控制
+    MM_AnticoggingCalibration,	// 抗齿槽力矩校准
+    MM_Error	// 错误
+}MotorMode;	// 电机模式
 typedef struct
 {
     MotorMode mode;    //电机控制模式
@@ -31,6 +32,7 @@ typedef struct
     float MaxCurrent;   //最大电流
     float MaxSpeed; //最大速度
     float Udc;  //母线电压
+    float Temp; //温度
     float Angle;    //电机电角度
     float TargetCurrent;    //目标电流
     float TargetSpeed;  //目标速度
