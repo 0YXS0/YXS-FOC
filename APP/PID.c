@@ -1,5 +1,7 @@
 #include "PID.h"
+#include "math.h"
 
+#define _2_DIV_3 0.66666666F	// 2/3
 #define LIMIT(x,min,max) (x)=(((x)<=(min))?(min):(((x)>=(max))?(max):(x)))
 
 /// @brief 位置式PID控制
@@ -16,10 +18,13 @@ void PIDSingleCalc(PIDInfo* info, const float target, const float Value)
     // 计算比例
     info->output += info->error * info->Kp;
     // 抗积分饱和
-    if (info->lastOutput > info->maxOutput) // (若lastOutput > MaxOutput ,则只累加负偏差)
-        info->integral += info->error < 0 ? info->error : 0;
-    else if (info->lastOutput < -info->maxOutput)   // (若lastOutput < -MaxOutput,则只累加正偏差)
-        info->integral += info->error > 0 ? info->error : 0;
+    if (fabsf(info->lastOutput) > info->maxOutput * _2_DIV_3)
+    {/// 若输出接近饱和,则只累加反向偏差
+        if (info->integral > 0)
+            info->integral += info->error < 0 ? info->error : 0;
+        else
+            info->integral += info->error > 0 ? info->error : 0;
+    }
     else
         info->integral += info->error;
     LIMIT(info->integral, -info->maxIntegral, info->maxIntegral);   //积分限幅

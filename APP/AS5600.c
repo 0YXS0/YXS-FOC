@@ -3,7 +3,7 @@
 #include "gd32f30x.h"
 
 #define AS5600_I2C I2C0
-#define AS5600_ADDR 0x36 << 1   //I2C地址
+#define AS5600_ADDR (0x36 << 1)   //I2C地址
 #define Data_Hight_Register_Addr 0x0C   //寄存器高位地址
 #define Data_Low_Register_Addr   0x0D   //寄存器低位地址
 

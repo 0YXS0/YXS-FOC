@@ -35,7 +35,7 @@ extern EncoderInfo Encoder;  //编码器信息
 /// @brief 获取编码器值
 /// @param Value 编码器值
 /// @return 0:成功 <0:失败
-static inline uint8_t getEncoderRawCount(uint32_t* Value)
+static inline int8_t getEncoderRawCount(uint32_t* Value)
 {
     return AS5600_GetCount(Value);
 }
