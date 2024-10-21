@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include "AS5600.h"
+#include "AS5047P.h"
+
 typedef enum
 {
     EVT_Angle = 1,   //原始角度
@@ -14,9 +16,9 @@ typedef enum
 
 typedef struct
 {
-    int32_t RawCount; //原始计数
+    uint32_t RawCount; //原始计数
     int32_t AccCount; //累积计数
-    int32_t LastRawCount; //上一次的原始计数
+    uint32_t LastRawCount; //上一次的原始计数
     int32_t DiffCount; //计数差值
 
     float EstimateAccCount; //预测累积计数    
@@ -37,7 +39,8 @@ extern EncoderInfo Encoder;  //编码器信息
 /// @return 0:成功 <0:失败
 static inline int8_t getEncoderRawCount(uint32_t* Value)
 {
-    return AS5600_GetCount(Value);
+    //return AS5600_GetCount(Value);
+    return AS5047P_ReadCount((uint16_t*)Value);
 }
 int8_t Encoder_UpdateValue(void);  //更新编码器值
 

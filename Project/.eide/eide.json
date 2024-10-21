@@ -51,6 +51,12 @@
           },
           {
             "path": "../APP/MMPrintf.c"
+          },
+          {
+            "path": "../APP/AS5047P.c"
+          },
+          {
+            "path": "../APP/SPI.c"
           }
         ],
         "folders": []

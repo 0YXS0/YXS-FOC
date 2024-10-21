@@ -17,27 +17,27 @@ void UsartCommandAnalyze(char* data)
     switch (command)
     {
     case 'N' << 8 | 'U':  // 停止电机
-        motor.mode = MM_NULL;
+        motor.NextMode = MM_NULL;
         break;
     case 'D' << 8 | 'R':  // 检测电机电阻
-        motor.mode = MM_DetectingResistance;
+        motor.NextMode = MM_DetectingResistance;
         break;
     case 'D' << 8 | 'L':  // 检测电机电感
-        motor.mode = MM_DetectingInductance;
+        motor.NextMode = MM_DetectingInductance;
         break;
     case 'C' << 8 | 'E':  // 检测编码器
-        motor.mode = MM_EncoderCalibration;
+        motor.NextMode = MM_EncoderCalibration;
         break;
     case 'A' << 8 | 'C':  // 抗齿槽力矩校准
-        motor.mode = MM_AnticoggingCalibration;
+        motor.NextMode = MM_AnticoggingCalibration;
         break;
     case 'V' << 8 | 'F':  // 开环VF控制
-        motor.mode = MM_OpenLoopVF;
-        OpenLoopTargetSpeed = strtof(data + 2, NULL);
+        motor.NextMode = MM_OpenLoopVF;
+        motor.OpenLoopTargetSpeed = strtof(data + 2, NULL);
         break;
     case 'I' << 8 | 'F':  // 开环IF控制
-        motor.mode = MM_OpenLoopIF;
-        OpenLoopTargetSpeed = strtof(data + 2, NULL);
+        motor.NextMode = MM_OpenLoopIF;
+        motor.OpenLoopTargetSpeed = strtof(data + 2, NULL);
         break;
     case 'U' << 8 | 'P':  // 更新系统配置信息
         SystemConfigInfoUpdate( );
@@ -49,7 +49,7 @@ void UsartCommandAnalyze(char* data)
         PrintfDebugInfoFlag = atoi(data + 2);
         break;
     case 'S' << 8 | 'M': // 设置电机模式
-        motor.mode = (MotorMode)(data[2] - '0');
+        motor.NextMode = (MotorMode)(data[2] - '0');
         break;
     case 'C' << 8 | 'P':  // 设置电流环Kp
         motor.PIDInfoIQ.Kp = strtof(data + 2, NULL);

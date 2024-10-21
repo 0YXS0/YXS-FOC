@@ -25,12 +25,12 @@ FirstOrderFilterInfo FilterInfo_EncoderSpeed = { 0.8F, 0.2F, 0 }; //编码器滤
 /// @return 0:成功 <0:失败
 int8_t Encoder_UpdateValue(void)
 {
-    int8_t ret = getEncoderRawCount((uint32_t*)&Encoder.RawCount); // 获取原始计数
+    int8_t ret = getEncoderRawCount(&Encoder.RawCount); // 获取原始计数
     if (ret != 0) return ret; // 获取原始计数失败
 
     Encoder.DiffCount = Encoder.RawCount - Encoder.LastRawCount; // 计算计数差值
-    if (Encoder.DiffCount > ENCODER_PULSE / 2) Encoder.DiffCount -= ENCODER_PULSE;  // 逆时针旋转溢出处理
-    else if (Encoder.DiffCount < (-ENCODER_PULSE / 2)) Encoder.DiffCount += ENCODER_PULSE;    // 顺时针旋转溢出处理
+    if (Encoder.DiffCount > (ENCODER_PULSE / 2)) Encoder.DiffCount -= ENCODER_PULSE;  // 逆时针旋转溢出处理
+    else if (Encoder.DiffCount < -(ENCODER_PULSE / 2)) Encoder.DiffCount += ENCODER_PULSE;    // 顺时针旋转溢出处理
 
     Encoder.AccCount += Encoder.DiffCount; // 累积计数
     Encoder.LastRawCount = Encoder.RawCount; // 更新上一次的原始计数
