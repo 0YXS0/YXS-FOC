@@ -6,9 +6,7 @@
 #ifndef FAST_SIN_H
 #define FAST_SIN_H
 
-#include <math.h>
-
-#define M_PI (3.1415926f)
+#define M_PI (3.1415926F)
 
 // lolremez --float --degree 5 --range "1e-50:pi*pi"
 // "(sin(sqrt(x))-sqrt(x))/(x*sqrt(x))" "1/(x*sqrt(x))"
