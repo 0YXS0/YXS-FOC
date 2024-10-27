@@ -365,7 +365,7 @@ int8_t EncoderOffsetCalibration(MotorInfo* info, uint8_t Flag)
         info->Angle = 0.0F;
         AccAngle = 0.0F;
         AccCount = 0;
-        CalibratingVoltage = info->MaxCurrent * info->Resistance * _1_DIV_3;
+        CalibratingVoltage = info->MaxCurrent * info->Resistance * _1_DIV_3 * _1_DIV_3;
         info->Uq = CalibratingVoltage;
         fast_sin_cos(info->Angle, &info->sinValue, &info->cosValue); //计算角度sin,cos
         ApplyMotorInfo(info);
@@ -461,14 +461,14 @@ int8_t AnticoggingCalibration(MotorInfo* info, uint8_t Flag)
         LoopCount = 0;
         Diff = 0.0F;
         info->AnticoggingCalibratedFlag = 0;
-        Increment = (float)(ANTICOGING_INCREMENT) / (float)(ENCODER_PULSE + 1) * _2PI * ABS(REDUTION_RATIO);
-        info->TargetPosition = -(Encoder.RawCount / ENCODER_PULSE * _2PI);
+        Increment = _2PI / ANTICOGING_TABLE_NUM;    // 每次增加的角度
+        info->TargetPosition = Encoder.AccAngle - ((float)Encoder.RawCount / ENCODER_PULSE * _2PI);  // 让电机处于编码器的零点
         Ki = info->PIDInfoSpeed.Ki;
         State = 1;
         break;
-    case 1:
+    case 1:/// 正转一圈
         Diff = info->TargetPosition - Encoder.AccAngle; // 计算角度差
-        if (fabsf(Diff) < Increment / 2.0F && fabsf(Encoder.Speed) < 0.15F && LoopCount > (FOC_CONTROL_FREQ / 10))
+        if (fabsf(Diff) < Increment / 10.0F && fabsf(Encoder.Speed) < 0.05F && LoopCount > (FOC_CONTROL_FREQ / 10))
         {/// 到达目标位置
             info->AnticogongTorqueTable[index++] = info->PIDInfoSpeed.integral * info->PIDInfoSpeed.Ki; // 记录校准力矩
             MM_printf("index:%d, Torque:%.6f\n", index - 1, info->AnticogongTorqueTable[index - 1]);    // 打印校准力矩
@@ -485,13 +485,40 @@ int8_t AnticoggingCalibration(MotorInfo* info, uint8_t Flag)
         {/// 超时
             ret = -1;
         }
-        if (index >= ANTICOGING_TABLE_NUM)  // 完成校准
+        if (index >= ANTICOGING_TABLE_NUM)  // 正转校准完成
         {
+            index = ANTICOGING_TABLE_NUM - 1;
             LoopCount = 0;
             State = 2;
         }
         break;
-    case 2:
+    case 2:/// 反转一圈
+        Diff = info->TargetPosition - Encoder.AccAngle; // 计算角度差
+        if (fabsf(Diff) < Increment / 5.0F && fabsf(Encoder.Speed) < 0.1F && LoopCount > (FOC_CONTROL_FREQ / 10))
+        {/// 到达目标位置
+            info->AnticogongTorqueTable[index] = info->PIDInfoSpeed.integral * info->PIDInfoSpeed.Ki; // 记录校准力矩
+            info->AnticogongTorqueTable[index--] /= 2.0F; // 平均校准力矩
+            MM_printf("index:%d, Torque:%.6f\n", index + 1, info->AnticogongTorqueTable[index + 1]);    // 打印校准力矩
+            info->TargetPosition -= Increment;  // 下一个目标位置
+            LoopCount = 0;  // 重置计数
+            info->PIDInfoSpeed.Ki = Ki; // 重置积分增益
+        }
+        else/// 未到达目标位置
+        {
+            LoopCount++;
+            if (LoopCount % (FOC_CONTROL_FREQ / 10) == 0) info->PIDInfoSpeed.Ki += Ki * 0.01F; // 增加积分增益
+        }
+        if (LoopCount >= FOC_CONTROL_FREQ * 30)
+        {/// 超时
+            ret = -1;
+        }
+        if (index >= ANTICOGING_TABLE_NUM)  // 完成校准
+        {
+            LoopCount = 0;
+            State = 3;
+        }
+        break;
+    case 3:
         ret = 1;
         break;
     default:
@@ -506,13 +533,13 @@ int8_t AnticoggingCalibration(MotorInfo* info, uint8_t Flag)
 void UpdatePIDInfo(MotorInfo* info)
 {
     /// 电流环PID参数
-    info->PIDInfoIQ.Kp = (FOC_CONTROL_FREQ / 20 * info->Inductance) * 0.25F;
-    info->PIDInfoIQ.Ki = (info->Resistance / info->Inductance / FOC_CONTROL_FREQ) * 0.25F;
+    info->PIDInfoIQ.Kp = (FOC_CONTROL_FREQ / 20 * info->Inductance) * 0.15F;
+    info->PIDInfoIQ.Ki = (info->Resistance / info->Inductance / FOC_CONTROL_FREQ) * 0.15F;
     info->PIDInfoIQ.Kd = 0.0F;
     info->PIDInfoIQ.maxOutput = info->MaxCurrent * info->Resistance;
     if (info->PIDInfoIQ.Ki == 0.0F) info->PIDInfoIQ.maxIntegral = 0.0F;
     else
-        info->PIDInfoIQ.maxIntegral = info->PIDInfoIQ.maxOutput * _1_DIV_3 / ABS(info->PIDInfoIQ.Ki);
+        info->PIDInfoIQ.maxIntegral = info->PIDInfoIQ.maxOutput * _2_DIV_3 / ABS(info->PIDInfoIQ.Ki);
 
     info->PIDInfoID.Kp = info->PIDInfoIQ.Kp;
     info->PIDInfoID.Ki = info->PIDInfoIQ.Ki;
@@ -524,13 +551,13 @@ void UpdatePIDInfo(MotorInfo* info)
     info->PIDInfoSpeed.maxOutput = info->MaxCurrent;
     if (info->PIDInfoSpeed.Ki == 0.0F) info->PIDInfoSpeed.maxIntegral = 0.0F;
     else
-        info->PIDInfoSpeed.maxIntegral = info->PIDInfoSpeed.maxOutput * _1_DIV_3 / ABS(info->PIDInfoSpeed.Ki);
+        info->PIDInfoSpeed.maxIntegral = info->PIDInfoSpeed.maxOutput * _2_DIV_3 / ABS(info->PIDInfoSpeed.Ki);
 
     /// 位置环PID参数
     info->PIDInfoPosition.maxOutput = info->MaxSpeed;
     if (info->PIDInfoPosition.Ki == 0.0F) info->PIDInfoPosition.maxIntegral = 0.0F;
     else
-        info->PIDInfoPosition.maxIntegral = info->PIDInfoPosition.maxOutput * _1_DIV_3 / ABS(info->PIDInfoPosition.Ki);
+        info->PIDInfoPosition.maxIntegral = info->PIDInfoPosition.maxOutput * _2_DIV_3 / ABS(info->PIDInfoPosition.Ki);
 }
 
 /// @brief 检测电机信息有效性

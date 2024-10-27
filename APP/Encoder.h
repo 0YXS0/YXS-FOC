@@ -2,7 +2,6 @@
 #define ENCODER_H
 
 #include <stdint.h>
-#include "AS5600.h"
 #include "AS5047P.h"
 
 typedef enum

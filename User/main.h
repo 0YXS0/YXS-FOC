@@ -20,7 +20,7 @@
 
 // 定义编码器信息
 #define ENCODER_PULSE 16383	// 编码器最大计数值(2^n-1)(n代表编码器位数)
-#define ANTICOGING_TABLE_NUM 2048	// 抗齿槽力矩表大小(<=4096)
+#define ANTICOGING_TABLE_NUM 1024	// 抗齿槽力矩表大小(<=4096)
 #define ANTICOGING_INCREMENT (int8_t)((ENCODER_PULSE + 1) / ANTICOGING_TABLE_NUM)	// 抗齿槽力矩对应位置增量
 #define Encoder_DT FOC_CONTROL_PERIOD // 编码器数值更新周期
 #define PLL_BANDWIDTH 1000  // PLL带宽

@@ -7,6 +7,7 @@ extern float OpenLoopTargetSpeed;  //开环目标速度
 extern uint8_t PrintfConfigInfoFlag;    //打印配置信息标志位
 extern uint8_t PrintfDebugInfoFlag;    //打印调试信息标志位
 void SystemConfigInfoUpdate(void);
+void InterfaceModeSelect(uint8_t mode);
 
 /// @brief 串口命令解析
 /// @param data 要解析的命令
@@ -53,45 +54,48 @@ void UsartCommandAnalyze(char* data)
         break;
     case 'C' << 8 | 'P':  // 设置电流环Kp
         motor.PIDInfoIQ.Kp = strtof(data + 2, NULL);
+        UpdatePIDInfo(&motor);  // 更新PID参数
         break;
     case 'C' << 8 | 'I':  // 设置电流环Ki
         motor.PIDInfoIQ.Ki = strtof(data + 2, NULL);
+        UpdatePIDInfo(&motor);  // 更新PID参数
         break;
     case 'C' << 8 | 'T': // 设置目标电流
         motor.TargetCurrent = strtof(data + 2, NULL);
         break;
     case 'S' << 8 | 'P':  // 设置速度环Kp
         motor.PIDInfoSpeed.Kp = strtof(data + 2, NULL);
+        UpdatePIDInfo(&motor);  // 更新PID参数
         break;
     case 'S' << 8 | 'I':  // 设置速度环Ki
         motor.PIDInfoSpeed.Ki = strtof(data + 2, NULL);
+        UpdatePIDInfo(&motor);  // 更新PID参数
         break;
-    case 'A' << 8 | 'F':  // 设置速度环Ki
+    case 'A' << 8 | 'F':  // 启动抗齿槽力矩校准
         motor.AnticoggingCalibratedFlag = atoi(data + 2);
-        break;
-        // case 'S' << 8 | 'D':  // 设置速度环Kd
-        //     motor.PIDInfoSpeed.Kd = strtof(data + 2, NULL);
         break;
     case 'S' << 8 | 'T': // 设置目标速度
         motor.TargetSpeed = strtof(data + 2, NULL);
         break;
     case 'P' << 8 | 'P':  // 设置位置环Kp
         motor.PIDInfoPosition.Kp = strtof(data + 2, NULL);
+        UpdatePIDInfo(&motor);  // 更新PID参数
         break;
     case 'P' << 8 | 'I':  // 设置位置环Ki
         motor.PIDInfoPosition.Ki = strtof(data + 2, NULL);
-        break;
-    case 'P' << 8 | 'D':  // 设置位置环Kd
-        motor.PIDInfoPosition.Kd = strtof(data + 2, NULL);
+        UpdatePIDInfo(&motor);  // 更新PID参数
         break;
     case 'P' << 8 | 'T': // 设置目标位置
         motor.TargetPosition = strtof(data + 2, NULL);
         break;
-    case 'M' << 8 | 'C': // 设置电机最大电流
-        motor.MaxCurrent = strtof(data + 2, NULL);
+    case 'L' << 8 | 'C': // 设置电机最大电流
+        motor.LimitCurrent = strtof(data + 2, NULL);
         break;
-    case 'M' << 8 | 'S': // 设置电机最大速度
-        motor.MaxSpeed = strtof(data + 2, NULL);
+    case 'L' << 8 | 'S': // 设置电机最大速度
+        motor.LimitSpeed = strtof(data + 2, NULL);
+        break;
+    case 'D' << 8 | 'S': // 设置板载4P接口为烧录模式
+        InterfaceModeSelect(0);
         break;
     }
 }

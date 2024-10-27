@@ -71,9 +71,9 @@ void adc0_config(void)
 
     /*------------------ADC GPIO配置------------------*/
     // 必须为模拟输入
-    gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_4); // 电源电压
     gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_5); // 电源电压
-    gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_6); // U相电流
+    gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_6); // 电源电压
+    gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_7); // U相电流
 
     adc_deinit(ADC0);
     adc_mode_config(ADC_DAUL_INSERTED_PARALLEL); // 工作模式:ADC0和ADC1工作在插入并行模式
@@ -86,15 +86,15 @@ void adc0_config(void)
 
     // 规则组配置
     adc_channel_length_config(ADC0, ADC_REGULAR_CHANNEL, VALUE_NUM);    // 转换通道数量
-    adc_regular_channel_config(ADC0, 0, ADC_CHANNEL_4, ADC_SAMPLETIME_239POINT5);    // 电源电压
+    adc_regular_channel_config(ADC0, 0, ADC_CHANNEL_5, ADC_SAMPLETIME_239POINT5);    // 电源电压
     adc_regular_channel_config(ADC0, 1, ADC_CHANNEL_17, ADC_SAMPLETIME_239POINT5);   // 内部参考电压
-    adc_regular_channel_config(ADC0, 2, ADC_CHANNEL_5, ADC_SAMPLETIME_239POINT5);    // 温度
+    adc_regular_channel_config(ADC0, 2, ADC_CHANNEL_6, ADC_SAMPLETIME_239POINT5);    // 温度
     adc_external_trigger_source_config(ADC0, ADC_REGULAR_CHANNEL, ADC0_1_2_EXTTRIG_REGULAR_NONE);   // 软件触发
     adc_external_trigger_config(ADC0, ADC_REGULAR_CHANNEL, ENABLE); // 规则组使能
 
     // 注入组配置
     adc_channel_length_config(ADC0, ADC_INSERTED_CHANNEL, 1);   // 转换通道数量
-    adc_inserted_channel_config(ADC0, 0, ADC_CHANNEL_6, ADC_SAMPLETIME_7POINT5);   // U相电流
+    adc_inserted_channel_config(ADC0, 0, ADC_CHANNEL_7, ADC_SAMPLETIME_7POINT5);   // U相电流
     adc_external_trigger_source_config(ADC0, ADC_INSERTED_CHANNEL, ADC0_1_EXTTRIG_INSERTED_T0_CH3);   // 定时器0通道3上升沿触发
     adc_external_trigger_config(ADC0, ADC_INSERTED_CHANNEL, ENABLE); // 注入组使能
 
@@ -113,7 +113,6 @@ void adc_config(void)
     adc0_config( );  // ADC2初始化配置
     /*------------------时钟配置------------------*/
     // GPIO时钟使能
-    rcu_periph_clock_enable(RCU_GPIOA);
     rcu_periph_clock_enable(RCU_GPIOB);
     rcu_periph_clock_enable(RCU_AF);    // 使能AF时钟
     // ADC时钟使能
@@ -122,7 +121,7 @@ void adc_config(void)
     rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV4);
 
     /*------------------ADC GPIO配置------------------*/
-    gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_7); // U相电流
+    gpio_init(GPIOB, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, GPIO_PIN_0); // U相电流
 
     adc_deinit(ADC1);   // 复位ADC1
     /*------------------ADC工作模式配置------------------*/
@@ -134,7 +133,7 @@ void adc_config(void)
     // 注入组配置
     adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 1); // 转换通道数量
     // 配置ADC通道转换顺序，采样时间(转换时间=采样时间+12.5个时钟周期=20个时钟周期=20/30MHz=0.666us)
-    adc_inserted_channel_config(ADC1, 0, ADC_CHANNEL_7, ADC_SAMPLETIME_7POINT5);   // W相电流
+    adc_inserted_channel_config(ADC1, 0, ADC_CHANNEL_8, ADC_SAMPLETIME_7POINT5);   // W相电流
     adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_2_EXTTRIG_INSERTED_NONE);  // 软件触发
     adc_external_trigger_config(ADC1, ADC_INSERTED_CHANNEL, ENABLE); // 注入组使能
 
@@ -190,10 +189,10 @@ static const uint16_t _10kNTC3950[101] = {
 /// @return 最接近的元素的索引
 uint8_t findClosest(uint16_t const* const arr, const uint8_t size, const uint16_t target)
 {
-    uint8_t start = 0;
-    uint8_t end = size - 1;
-    uint8_t mid;
-    uint8_t closest = 0; // 假设第一个元素是最接近的
+    int16_t start = 0;
+    int16_t end = size - 1;
+    int16_t mid;
+    int16_t closest = 0; // 假设第一个元素是最接近的
     uint16_t minDiff = arr[0]; // 最小差异初始化为第一个元素
 
     while (start <= end)
@@ -226,7 +225,7 @@ void getPowerVoltageAndTemp(float* PowerVoltage, float* Temp)
     ReferenceGain = REFERENCE / *Reference_ADC_Value; // 电压增益
     *PowerVoltage = MoveAverageFilter(&FilterInfo_Power, (*Power_ADC_Value * ReferenceGain * 6.1F)); // 电压分压比为51:10
     // 求热敏电阻实际阻值(分压电阻为3.24K,用Offset_U * 2代替芯片供电电压)
-    R = 3240.0F / (*Temp_ADC_Value) * (4095U - *Temp_ADC_Value);
+    R = 10000.0F / (*Temp_ADC_Value) * (4095U - *Temp_ADC_Value);
     // 二分查找最接近的元素
     t = findClosest(_10kNTC3950, 101U, R);
     // 按权重计算温度

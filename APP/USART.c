@@ -9,7 +9,7 @@
 #define USART1_RX_SIZE  128
 #define USART1_TX_SIZE  128
 char USART1RX_Buffer[USART1_RX_SIZE] = { 0 };    //串口1接收缓存
-uint8_t USART1TX_Buffer[USART1_TX_SIZE] = { 0 };    //串口1发送缓存
+// uint8_t USART1TX_Buffer[USART1_TX_SIZE] = { 0 };    //串口1发送缓存
 
 /// @brief 串口1 DMA配置
 void usart_dma_config(void)
@@ -38,7 +38,7 @@ void usart_dma_config(void)
 
     //配置DMA0通道6(Usart1_TX)
     dma_init_Usart1_TX.direction = DMA_MEMORY_TO_PERIPHERAL;        //方向:内存到外设
-    dma_init_Usart1_TX.memory_addr = (uint32_t)USART1TX_Buffer;     //内存地址
+    dma_init_Usart1_TX.memory_addr = (uint32_t)NULL;     //内存地址
     dma_init_Usart1_TX.memory_inc = DMA_MEMORY_INCREASE_ENABLE;     //内存地址自增
     dma_init_Usart1_TX.memory_width = DMA_MEMORY_WIDTH_8BIT;        //内存数据宽度
     dma_init_Usart1_TX.number = (uint32_t)0;           //数据传输量

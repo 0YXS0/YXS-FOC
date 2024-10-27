@@ -28,8 +28,8 @@ typedef struct __MotorInfo
     int8_t Direction;   // 电机转向
     float Resistance;   // 电机电阻
     float Inductance;   // 电机电感
-    float MaxCurrent;   // 最大电流
-    float MaxSpeed; // 最大速度
+    float MaxCurrent;   // 最大电流(电机能够承受的最大电流)
+    float MaxSpeed; // 最大速度(电机能够达到的最大速度)
     float Udc;  // 母线电压
     float Temp; // 温度
     float Angle;    // 电机电角度
@@ -38,7 +38,9 @@ typedef struct __MotorInfo
     float OpenLoopTargetAngle_IF;   // IF控制目标角度
     float OpenLoopTargetSpeed;	// 开环控制目标速度
     float TargetCurrent;    // 目标电流
+    float LimitCurrent; // 限制电流(用户设定的最大电流)
     float TargetSpeed;  // 目标速度
+    float LimitSpeed;   // 限制速度(用户设定的最大速度)
     float TargetPosition;   // 目标位置
     uint8_t AnticoggingCalibratedFlag;    // 抗齿槽力矩校准标志(0:已校准,!0:未校准)
     float AnticogongTorqueTable[ANTICOGING_TABLE_NUM]; // 抗齿槽力矩表

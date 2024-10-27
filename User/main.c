@@ -5,7 +5,6 @@
 #include "gd32f30x.h"
 #include "systick.h"
 #include "Delay.h"
-#include "i2c.h"
 #include "SPI.h"
 #include "Encoder.h"
 #include "ADC.h"
@@ -32,20 +31,20 @@ uint8_t const* const ConfigChangedFlag = (const uint8_t*)(CONFIG_CHANGED_FLAG_AD
 MotorInfo motor = {
 	.CurMode = MM_NULL,
 	.MotorID = 0x01,
-	.Direction = 1,
+	.Direction = -1,
 	.PolePairs = 7,
 	.MAXPulse = TIMER_PERIOD,
 	.MaxCurrent = 10.0F,
 	.MaxSpeed = 120.0F,
-	.Resistance = 0.232926F,
-	.Inductance = 0.000147F,
+	.Resistance = 0.265705F,
+	.Inductance = 0.000837F,
 	.Udc = 0.0F,
 	.TargetCurrent = 0.0F,
 	.TargetSpeed = 0.0F,
 	.TargetPosition = 0.0F,
-	.PIDInfoSpeed.Kp = 0.0F,
-	.PIDInfoSpeed.Ki = 0.0F,
-	.PIDInfoPosition.Kp = 0.0F,
+	.PIDInfoSpeed.Kp = 0.2F,
+	.PIDInfoSpeed.Ki = 0.00025F,
+	.PIDInfoPosition.Kp = 5.0F,
 	.PIDInfoPosition.Ki = 0.0F,
 	.AnticoggingCalibratedFlag = 0,
 	.WarningInfo = Warning_Null,
@@ -191,6 +190,26 @@ void PrintfConfigInfo(void)
 	MM_printf("ErrorInfo:%s\n", getErrorStr(motor.ErrorInfo));
 }
 
+/// @brief 选择板载4P接口的模式
+/// @param mode 0:烧录模式(STLink) !0:串口模式(默认)
+void InterfaceModeSelect(uint8_t mode)
+{
+	if (mode)
+	{/// 串口模式
+		gpio_pin_remap_config(GPIO_SWJ_DISABLE_REMAP, ENABLE); // 关闭SWJ功能
+		gpio_init(GPIOA, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_50MHZ, GPIO_PIN_13);	// PA13设置为高阻态
+		gpio_init(GPIOA, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_50MHZ, GPIO_PIN_14);	// PA14设置为高阻态
+		usart_config( );	// 串口1初始化
+	}
+	else
+	{/// 烧录模式
+		gpio_pin_remap_config(GPIO_SWJ_SWDPENABLE_REMAP, ENABLE); // 打开SWJ功能
+		gpio_init(GPIOA, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_50MHZ, GPIO_PIN_2);	// PA2设置为高阻态
+		gpio_init(GPIOA, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_50MHZ, GPIO_PIN_3);	// PA3设置为高阻态
+		usart_disable(USART1);   // 关闭串口1
+	}
+}
+
 int main( )
 {
 	uint32_t Value = 0;
@@ -199,7 +218,7 @@ int main( )
 	// i2c0_config( );	// I2C0配置
 	SPI0_Config( );	// SPI0配置
 	AS5047P_Init( );	// AS5047P初始化
-	usart_config( );	// 串口配置
+	// usart_config( );	// 串口配置
 	adc_config( );	// ADC0配置，对U、V、W相电流和电源电压进行采样
 	timer_config(TIMER_PRESCALER, TIMER_PERIOD);	// PWM频率(中央对齐模式,频率减半)--(120MHz / 3 / 2 / 1000 = 20kHz)
 	Delay_ms(10);	// 延时10ms
@@ -209,6 +228,9 @@ int main( )
 
 	gpio_init(GPIOA, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_1);	// 测试引脚
 
+	InterfaceModeSelect(1);	// 选择串口模式
+	motor.LimitCurrent = motor.MaxCurrent;
+	motor.LimitSpeed = motor.MaxSpeed;
 	if (getEncoderRawCount(&Value) < 0)	// 编码器读取错误
 		motor.ErrorInfo = Error_EncoderReadError;
 	else
@@ -229,7 +251,7 @@ int main( )
 		}
 		if (PrintfDebugInfoFlag == 1)
 		{/// 打印调试信息
-			JustFloat_Show(14, motor.Ia, motor.Ib, motor.Ic, motor.TargetCurrent, motor.Iq, motor.Id, motor.TargetSpeed, Encoder.Speed, Encoder.Angle, Encoder.AccAngle, motor.Uq, motor.Ud, motor.TargetPosition, (float)Encoder.RawCount);
+			JustFloat_Show(14, motor.Ia, motor.Ib, motor.Ic, motor.TargetCurrent, motor.Iq, motor.Id, motor.TargetSpeed, Encoder.Speed, Encoder.Angle, Encoder.AccAngle, motor.Uq, motor.Ud, motor.TargetPosition, motor.Temp);
 		}
 	}
 }
@@ -358,7 +380,7 @@ static inline void QuitMotorMode(void)
 		}
 		else if (ret == -1)
 		{
-			MM_printf("AnticoggingCalibration-Unknown error\n");
+			MM_printf("AnticoggingCalibration-Overtime\n");
 		}
 		else
 		{
@@ -480,12 +502,14 @@ void ADC0_1_IRQHandler(void)
 
 	getMotorCurrent(&motor);	// 获取电机U、V、W相电流
 	if (motor.ErrorInfo != Error_EncoderReadError)
+	{
 		if (Encoder_UpdateValue( ) < 0)
 		{
 			ClosePWM( );	// 关闭PWM
 			motor.NextMode = MM_Error;
 			motor.ErrorInfo = Error_EncoderReadError;
 		}
+	}
 
 	if (motor.CurMode != motor.NextMode)	// 电机模式需要发生改变
 	{
@@ -546,11 +570,11 @@ void ADC0_1_IRQHandler(void)
 	case MM_PositionControl:	// 位置环控制
 		PIDSingleCalc(&motor.PIDInfoPosition, motor.TargetPosition, Encoder.AccAngle);
 		motor.TargetSpeed = motor.PIDInfoPosition.output;	// 设置目标速度
-		LIMIT(motor.TargetSpeed, -motor.MaxSpeed, motor.MaxSpeed);	// 限制在最大速度范围内
+		LIMIT(motor.TargetSpeed, -motor.LimitSpeed, motor.LimitSpeed);	// 限制速度范围
 	case MM_SpeedControl:	// 速度环控制
 		PIDSingleCalc(&motor.PIDInfoSpeed, motor.TargetSpeed, Encoder.Speed);
 		motor.TargetCurrent = motor.PIDInfoSpeed.output;	// 设置目标电流
-		LIMIT(motor.TargetCurrent, -motor.MaxCurrent, motor.MaxCurrent);	// 限制在最大电流范围内
+		LIMIT(motor.TargetCurrent, -motor.LimitCurrent, motor.LimitCurrent);	// 限制电流范围
 	case MM_CurrentControl:	// 电流环控制
 		motor.Angle = Encoder.Angle * motor.PolePairs;	// 设置电机电角度
 		motor.Angle = fmodf(motor.Angle, _2PI);	// 限制在-2PI~2PI之间
