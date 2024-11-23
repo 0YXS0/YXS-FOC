@@ -29,6 +29,8 @@ vendor/
 # 忽略敏感或个人文件
 config.ini
 secrets.txt
+/参考资料
+/TSMaster
 
 # Ignore operating system files
 # 忽略操作系统文件

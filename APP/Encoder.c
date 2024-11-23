@@ -10,16 +10,16 @@ static const float PLL_Ki = 0.25F * (PLL_Kp * PLL_Kp); //PLL积分增益
 EncoderInfo Encoder = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  //编码器信息
 FirstOrderFilterInfo FilterInfo_EncoderSpeed = { 0.8F, 0.2F, 0 }; //编码器滤波器参数
 
-// /// @brief 将值转换为-range~range范围内的值
-// /// @param value 要转换的值
-// /// @param range 范围
-// /// @return 转换后的值
-// static inline float wrap_pm(float value, float range)
-// {
-//     float t = fmodf(value + range, 2.0F * range);
-//     if (t < 0) t += 2.0F * range;
-//     return t - range;
-// }
+/// @brief 将值转换为-range~range范围内的值
+/// @param value 要转换的值
+/// @param range 范围
+/// @return 转换后的值
+static inline float wrap_pm(float value, float range)
+{
+    float t = fmodf(value + range, 2.0F * range);
+    if (t < 0) t += 2.0F * range;
+    return t - range;
+}
 
 /// @brief 更新编码器值(角度、速度、累积角度)
 /// @return 0:成功 <0:失败
@@ -37,17 +37,17 @@ int8_t Encoder_UpdateValue(void)
 
     // 预测计数值
     Encoder.EstimateAccCount += Encoder_DT * Encoder.EstimateSpeedCount; // 预测累积计数
-    // Encoder.EstimateCount += Encoder_DT * Encoder.EstimateSpeedCount; // 预测单圈内计数
+    Encoder.EstimateCount += Encoder_DT * Encoder.EstimateSpeedCount; // 预测单圈内计数
     // 离散相位检测
     float DeltaAccCount = (float)Encoder.AccCount - Encoder.EstimateAccCount; // 计算累积计数差值
-    // float DeltaCount = (float)Encoder.RawCount - Encoder.EstimateCount; // 计算单圈内计数差值
-    // DeltaCount = wrap_pm(DeltaCount, ENCODER_PULSE / 2); // 转换为-ENCODER_PULSE/2 ~ ENCODER_PULSE/2范围内的值
+    float DeltaCount = (float)Encoder.RawCount - Encoder.EstimateCount; // 计算单圈内计数差值
+    DeltaCount = wrap_pm(DeltaCount, ENCODER_PULSE / 2); // 转换为-ENCODER_PULSE/2 ~ ENCODER_PULSE/2范围内的值
     // PLL反馈
     Encoder.EstimateAccCount += Encoder_DT * PLL_Kp * DeltaAccCount; // PLL比例增益
-    // Encoder.EstimateCount += Encoder_DT * PLL_Kp * DeltaCount; // PLL比例增益
-    // Encoder.EstimateCount = fmodf(Encoder.EstimateCount, ENCODER_PULSE);
-    // if (Encoder.EstimateCount < 0) Encoder.EstimateCount += ENCODER_PULSE; // 转换为0~ENCODER_PULSE范围内的值
-    Encoder.EstimateSpeedCount += Encoder_DT * PLL_Ki * DeltaAccCount; // PLL积分增益
+    Encoder.EstimateCount += Encoder_DT * PLL_Kp * DeltaCount; // PLL比例增益
+    Encoder.EstimateCount = fmodf(Encoder.EstimateCount, ENCODER_PULSE);
+    if (Encoder.EstimateCount < 0) Encoder.EstimateCount += ENCODER_PULSE; // 转换为0~ENCODER_PULSE范围内的值
+    Encoder.EstimateSpeedCount += Encoder_DT * PLL_Ki * DeltaCount; // PLL积分增益
 
     char snap_to_zero_Speed = 0;    // 速度向0对齐标志
     if (fabsf(Encoder.EstimateSpeedCount) < 0.5F * Encoder_DT * PLL_Ki)
