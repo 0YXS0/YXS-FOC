@@ -14,6 +14,8 @@
 #include "fast_sin.h"
 #include "Flash.h"
 #include "MMPrintf.h"
+#include "Command.h"
+#include "CAN.h"
 
 #define _1_DIV_3 0.33333333F	// 1/3
 #define _2_DIV_3 0.66666666F	// 2/3
@@ -23,8 +25,11 @@
 #define SYSTEM_CONFIG_INFO_ADDR (CONFIG_CHANGED_FLAG_ADDR + 1)	// 系统配置信息地址
 #define ANTICOGING_TABLE_ADDR (FLASH_USER_START_ADDR + FLASH_BANK0_PAGE_SIZE)	// 抗齿槽力矩表地址
 
+uint32_t Count = 0;	// 中断计数
 uint8_t PrintfConfigInfoFlag = 0;	// 打印配置信息标志位
 uint8_t PrintfDebugInfoFlag = 0;	// 打印调试信息标志位
+uint8_t HeartbeatFlag = 0;	//心跳是否开启标志
+uint8_t HeartbeatCycle = 10;	//心跳周期(单位:ms)
 SystemConfigInfo const* const SystemInfo = (SystemConfigInfo*)(SYSTEM_CONFIG_INFO_ADDR);	// 系统配置信息存储地址
 uint8_t const* const ConfigChangedFlag = (const uint8_t*)(CONFIG_CHANGED_FLAG_ADDR);	// 配置改变标志位(为0代表配置已经被更新过)
 
@@ -74,7 +79,7 @@ void MotorInfoUpdate(void)
 }
 
 /// 更新Flash中的系统配置信息
-void SystemConfigInfoUpdate(void)
+void SystemConfigInfoSave(void)
 {
 	SystemConfigInfo info = {
 		.MotorID = motor.MotorID,
@@ -104,7 +109,7 @@ void SystemConfigInfoUpdate(void)
 	FMCWriteData(ANTICOGING_TABLE_ADDR, (uint32_t*)motor.AnticogongTorqueTable, ANTICOGING_TABLE_NUM);
 
 	free(data);	// 释放内存
-	MM_printf("SystemConfigInfoUpdate-Success\n");
+	MM_printf("SystemConfigInfoSave-Success\n");
 }
 
 /// @brief 获取警告信息字符串
@@ -215,34 +220,31 @@ int main( )
 	uint32_t Value = 0;
 	nvic_priority_group_set(NVIC_PRIGROUP_PRE2_SUB2);   // 设置中断分组
 	systick_config( );
-	// i2c0_config( );	// I2C0配置
 	SPI0_Config( );	// SPI0配置
 	AS5047P_Init( );	// AS5047P初始化
-	// usart_config( );	// 串口配置
 	adc_config( );	// ADC0配置，对U、V、W相电流和电源电压进行采样
 	timer_config(TIMER_PRESCALER, TIMER_PERIOD);	// PWM频率(中央对齐模式,频率减半)--(120MHz / 3 / 2 / 1000 = 20kHz)
 	Delay_ms(10);	// 延时10ms
 	adc_OffsetConfig( );	// 初始化电机U、W相电流和电源电压偏置
 	MotorInfoUpdate( );	// 从Flash中读取系统配置信息,并更新给电机
 	UpdatePIDInfo(&motor);	// 更新PID参数
-
-	gpio_init(GPIOA, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_1);	// 测试引脚
-
+	CAN0_config(motor.MotorID);	// CAN配置
+	// gpio_init(GPIOA, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_1);	// 测试引脚
 	InterfaceModeSelect(1);	// 选择串口模式
-	motor.LimitCurrent = motor.MaxCurrent;
-	motor.LimitSpeed = motor.MaxSpeed;
+	motor.LimitCurrent = motor.MaxCurrent;	// 电流限制
+	motor.LimitSpeed = motor.MaxSpeed;	// 速度限制
 	if (getEncoderRawCount(&Value) < 0)	// 编码器读取错误
 		motor.ErrorInfo = Error_EncoderReadError;
 	else
 		nvic_irq_enable(ADC0_1_IRQn, 0, 1); // 使能ADC0_1中断
 	while (1)
 	{
-		getPowerVoltageAndTemp(&motor.Udc, &motor.Temp);	// 获取电源电压
-		CheckMotorInfoVality(&motor, 0);	// 检测电机信息有效性并更新PID参数
-		if (motor.Udc < 11.40F)
-			motor.WarningInfo = Warning_PowerLowVoltage;
-		else if (motor.WarningInfo == Warning_PowerLowVoltage)
-			motor.WarningInfo = Warning_Null;
+		if (Count % (FOC_CONTROL_FREQ / 100) == 0)	// 获取电源电压(频率:100Hz)
+			getPowerVoltageAndTemp(&motor.Udc, &motor.Temp);
+		CheckMotorInfoVality(&motor);	// 检测电机信息有效性并更新PID参数
+
+		if (HeartbeatFlag == 1 && Count % (uint32_t)(HeartbeatCycle / FOC_CONTROL_PERIOD / 1000) == 0)
+			canSendHeartbeatFrame( );	// 发送心跳帧
 
 		if (PrintfConfigInfoFlag == 1)
 		{/// 打印配置信息
@@ -279,7 +281,7 @@ static inline void QuitMotorMode(void)
 				motor.ErrorInfo == Error_DetectingResistance_LargeCurrentError ||
 				motor.ErrorInfo == Error_DetectingResistance_OverVoltage)
 				motor.ErrorInfo = Error_Null;
-			CheckMotorInfoVality(&motor, True);	// 检测电机信息有效性
+			CheckMotorInfoVality(&motor);	// 检测电机信息有效性
 			UpdatePIDInfo(&motor);	// 更新PID参数
 			MM_printf("DetectingResistance-Success\nResistance:%.6f\n", motor.Resistance);
 		}
@@ -313,7 +315,7 @@ static inline void QuitMotorMode(void)
 		{/// 电感检测完成
 			if (motor.ErrorInfo == Error_DetectingInductance_Unknown)
 				motor.ErrorInfo = Error_Null;
-			CheckMotorInfoVality(&motor, True);	// 检测电机信息有效性
+			CheckMotorInfoVality(&motor);	// 检测电机信息有效性
 			UpdatePIDInfo(&motor);	// 更新PID参数
 			MM_printf("DetectingInductance-Success\nInductance:%.6f\n", motor.Inductance);
 		}
@@ -339,7 +341,7 @@ static inline void QuitMotorMode(void)
 				motor.ErrorInfo == Error_EncoderOffsetCalibration_PolePairsError ||
 				motor.ErrorInfo == Error_EncoderOffsetCalibration_Unknown)
 				motor.ErrorInfo = Error_Null;
-			CheckMotorInfoVality(&motor, True);	// 检测电机信息有效性
+			CheckMotorInfoVality(&motor);	// 检测电机信息有效性
 			MM_printf("EncoderOffsetCalibration-Success\nDirection:%s\nOffsetCount:%d\nPolePairs:%d\n", motor.Direction == 1 ? "CW" : "CCW", Encoder.OffsetCount, motor.PolePairs);
 		}
 		else if (ret == -1)
@@ -498,8 +500,9 @@ void ADC0_1_IRQHandler(void)
 	}
 	adc_interrupt_flag_clear(ADC1, ADC_INT_FLAG_EOIC);	// 清除ADC中断标志
 
-	gpio_bit_set(GPIOA, GPIO_PIN_1);	// 测试用
+	// gpio_bit_set(GPIOA, GPIO_PIN_1);	// 测试用
 
+	if (Count++ > FOC_CONTROL_FREQ) Count = 0;	// 中断计数
 	getMotorCurrent(&motor);	// 获取电机U、V、W相电流
 	if (motor.ErrorInfo != Error_EncoderReadError)
 	{
@@ -582,8 +585,12 @@ CurrentControl:
 		fast_sin_cos(motor.Angle, &motor.sinValue, &motor.cosValue); // 计算角度sin值和cos值
 		Clarke_Transf(&motor);	// Clarke变换
 		Park_Transf(&motor);	// Park变换
-		if (motor.CurMode != MM_AnticoggingCalibration && motor.AnticoggingCalibratedFlag == 1)// 抗齿槽力矩补偿
+		if (motor.CurMode != MM_AnticoggingCalibration && \
+			motor.AnticoggingCalibratedFlag == 1 && \
+			motor.IsOpenAntiCoggingFlag == 1)// 抗齿槽力矩补偿
+		{
 			TargetCurrent = motor.TargetCurrent + motor.AnticogongTorqueTable[(uint32_t)roundf((float)Encoder.RawCount / ANTICOGING_INCREMENT)];
+		}
 		else
 			TargetCurrent = motor.TargetCurrent;
 		PIDSingleCalc(&motor.PIDInfoIQ, TargetCurrent, motor.Iq);	// Iq控制
@@ -598,7 +605,7 @@ CurrentControl:
 		break;
 	}
 
-	gpio_bit_reset(GPIOA, GPIO_PIN_1);	// 测试用
+	// gpio_bit_reset(GPIOA, GPIO_PIN_1);	// 测试用
 }
 
 

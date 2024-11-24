@@ -10,13 +10,13 @@ typedef enum __MotorMode
     MM_DetectingResistance,	// 检测电机电阻
     MM_DetectingInductance,	// 检测电机电感
     MM_EncoderCalibration,	// 检测编码器
+    MM_AnticoggingCalibration,	// 抗齿槽力矩校准
     MM_CurrentControl,	// 电流控制
     MM_SpeedControl,	// 速度控制
     MM_PositionControl,	// 位置控制
     MM_OpenLoopVF,    // 开环VF控制
     MM_OpenLoopIF,  // 开环IF控制
-    MM_AnticoggingCalibration,	// 抗齿槽力矩校准
-    MM_Error	// 错误
+    MM_Error = 0xFF	// 错误
 }MotorMode;	// 电机模式
 typedef struct __MotorInfo
 {
@@ -42,6 +42,7 @@ typedef struct __MotorInfo
     float TargetSpeed;  // 目标速度
     float LimitSpeed;   // 限制速度(用户设定的最大速度)
     float TargetPosition;   // 目标位置
+    uint8_t IsOpenAntiCoggingFlag;  // 是否开启抗齿槽力矩
     uint8_t AnticoggingCalibratedFlag;    // 抗齿槽力矩校准标志(0:已校准,!0:未校准)
     float AnticogongTorqueTable[ANTICOGING_TABLE_NUM]; // 抗齿槽力矩表
     WarningType WarningInfo;    // 警告信息
@@ -87,7 +88,7 @@ int8_t DetectingInductance(MotorInfo* info, float DetectingVoltage, uint8_t Flag
 int8_t EncoderOffsetCalibration(MotorInfo* info, uint8_t Flag);    //编码器校准
 int8_t AnticoggingCalibration(MotorInfo* info, uint8_t Flag);    //抗齿槽力矩校准
 void UpdatePIDInfo(MotorInfo* info);    //更新PID参数
-void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag);   //检测电机信息有效性并更新PID参数
+void CheckMotorInfoVality(MotorInfo* info);   //检测电机信息有效性并更新PID参数
 
 #endif // !MOTOR_H
 

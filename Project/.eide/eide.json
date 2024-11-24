@@ -14,16 +14,10 @@
             "path": "../APP/ADC.c"
           },
           {
-            "path": "../APP/AS5600.c"
-          },
-          {
             "path": "../APP/Delay.c"
           },
           {
             "path": "../APP/Filter.c"
-          },
-          {
-            "path": "../APP/i2c.c"
           },
           {
             "path": "../APP/Motor.c"
@@ -57,6 +51,9 @@
           },
           {
             "path": "../APP/SPI.c"
+          },
+          {
+            "path": "../APP/CAN.c"
           }
         ],
         "folders": []

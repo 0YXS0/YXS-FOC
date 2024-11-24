@@ -1,24 +1,7 @@
 {
   "folders": [
     {
-      "name": "CMSIS",
-      "path": "../CMSIS"
-    },
-    {
-      "name": "FWLib",
-      "path": "../FWLib"
-    },
-    {
-      "name": "Project",
-      "path": "."
-    },
-    {
-      "name": "APP",
-      "path": "../APP"
-    },
-    {
-      "name": "User",
-      "path": "../User"
+      "path": ".."
     }
   ],
   "settings": {
@@ -40,7 +23,10 @@
       "array": "c",
       "string": "c",
       "string_view": "c",
-      "cstddef": "c"
+      "cstddef": "c",
+      "initializer_list": "c",
+      "ranges": "c",
+      "utility": "c"
     },
     "[yaml]": {
       "editor.insertSpaces": true,

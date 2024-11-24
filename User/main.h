@@ -38,7 +38,6 @@ typedef enum __WarningType
 typedef enum __ErrorType
 {
     Error_Null = 0,	// 空错误
-    Error_Unknown,	// 未知错误
     Error_EncoderReadError, // 编码器读取错误
     Error_PowerLowVoltage,  // 电源电压过低
     Error_PowerHighVoltage, // 电源电压过高
@@ -46,22 +45,25 @@ typedef enum __ErrorType
     Error_ResistanceError,  // 电阻错误
     Error_InductanceError,  // 电感错误
     Error_EncoderOffsetError,   // 编码器偏置错误
-    Error_DirectionError,   // 转向错误
+    Error_DirectionError,   // 方向错误
     Error_MaxCurrentError,  // 最大电流错误
+    Error_TemperatureHigh,  // 温度过高
 
     /// @brief 电阻检测错误
-    Error_DetectingResistance_Unknown = 100,	// 检测电机电阻-未知错误
+    Error_DetectingResistance_Unknown = 210,	// 检测电机电阻-未知错误
     Error_DetectingResistance_OverVoltage,	// 检测电机电阻-过压
     Error_DetectingResistance_LargeCurrentError,	// 检测电机电阻-电流误差过大
 
     /// @brief 电感检测错误
-    Error_DetectingInductance_Unknown = 200,	// 检测电机电感-未知错误
+    Error_DetectingInductance_Unknown = 225,	// 检测电机电感-未知错误
 
     /// @brief 编码器校准错误
-    Error_EncoderOffsetCalibration_Unknown = 300,   // 编码器校准-未知错误
+    Error_EncoderOffsetCalibration_Unknown = 240,   // 编码器校准-未知错误
     Error_EncoderOffsetCalibration_OverTime,    // 编码器校准-超时
     Error_EncoderOffsetCalibration_EncoderError,    // 编码器校准-编码器错误
     Error_EncoderOffsetCalibration_PolePairsError,  // 编码器校准-极对数错误
+
+    Error_Unknown = 0xFF,	// 未知错误
 }ErrorType; //错误类型
 
 typedef struct
