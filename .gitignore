@@ -6,11 +6,11 @@
 
 # Ignore build output directories
 # 忽略构建输出目录
-Project/build/*
+Project/build
 
 # Ignore IDE and editor files
 # 忽略IDE和编辑器文件
-Project/.vscode/
+Project/.vscode
 
 
 # Ignore package manager files
@@ -28,8 +28,10 @@ vendor/
 # 忽略敏感或个人文件
 config.ini
 secrets.txt
+/Project/.eide.usr.ctx.json
 /参考资料
 /TSMaster
+*.png
 
 # Ignore operating system files
 # 忽略操作系统文件

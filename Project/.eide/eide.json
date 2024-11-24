@@ -54,12 +54,6 @@
           },
           {
             "path": "../APP/CAN.c"
-          },
-          {
-            "path": "../APP/AS5600.c"
-          },
-          {
-            "path": "../APP/i2c.c"
           }
         ],
         "folders": []
