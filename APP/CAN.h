@@ -8,4 +8,3 @@ int8_t canSend(uint32_t can_periph, can_trasnmit_message_struct* m);    // è®¾ç½
 
 #endif // !CAN_H
 
-

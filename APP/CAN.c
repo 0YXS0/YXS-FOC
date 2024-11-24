@@ -43,7 +43,7 @@ void CAN0_config(uint8_t nodeID)
     can_filter_init(&can_filter_param_struct);
 
     can_interrupt_enable(CAN0, CAN_INT_RFNE0);  // 使能接收FIFO0非空中断
-    nvic_irq_enable(CAN0_RX1_IRQn, 1, 1);
+    nvic_irq_enable(USBD_LP_CAN0_RX0_IRQn, 1, 1);
 }
 
 /// @brief 设置CANOpen数据发送函数
@@ -64,10 +64,10 @@ int8_t canSend(uint32_t can_periph, can_trasnmit_message_struct* m)
 }
 
 /// @brief CAN0中断服务函数
-void CAN0_RX1_IRQHandler(void)
+void USBD_LP_CAN0_RX0_IRQHandler(void)
 {
     static can_receive_message_struct msg;
-    if (can_interrupt_flag_get(CAN0, CAN_INT_RFNE0) == SET)
+    if (can_interrupt_flag_get(CAN0, CAN_INT_FLAG_RFL0) == SET)
     {
         can_message_receive(CAN0, CAN_FIFO0, &msg); // 读取CAN数据帧
         CanCommandAnalyze(&msg);    // CAN命令解析

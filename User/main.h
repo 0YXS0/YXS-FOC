@@ -75,15 +75,16 @@ typedef struct
     float Inductance;	//电机电感
     int32_t EncoderOffset;	//编码器偏置
     uint8_t MotorMode;	//电机模式
+    uint8_t IsOpenAntiCoggingFlag;	//是否开启抗齿槽力矩
     uint8_t AnticoggingCalibratedFlag;	//抗齿槽力矩校准标志(1:已校准,0:未校准)
-    // float DetectingCurrent;	//检测电流
-    // float MaxDetectingVoltage;	//最大检测电压
     float MaxCurrent;	//最大电流
     float MaxSpeed;	//最大速度
     float SpeedKp;	//速度环P参数
     float SpeedKi;	//速度环I参数
     float PositionKp;	//位置环P参数
     float PositionKi;	//位置环I参数
+    uint8_t HeartbeatFlag;	//心跳是否开启标志
+    uint8_t HeartbeatCycle;	//心跳周期(单位:ms)
 }SystemConfigInfo;	//系统配置信息
 extern SystemConfigInfo const* const SystemInfo;
 

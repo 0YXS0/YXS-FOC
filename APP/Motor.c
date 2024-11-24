@@ -562,7 +562,6 @@ void UpdatePIDInfo(MotorInfo* info)
 
 /// @brief 检测电机信息有效性
 /// @param info 电机信息
-/// @param PrintfFlag 是否打印信息(0:不打印 1:打印)
 void CheckMotorInfoVality(MotorInfo* info)
 {
     // 检查极对数
@@ -575,6 +574,7 @@ void CheckMotorInfoVality(MotorInfo* info)
     }
     else if (info->ErrorInfo == Error_PolePairsError)
     {
+        info->NextMode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
     // 检查电阻
@@ -587,6 +587,7 @@ void CheckMotorInfoVality(MotorInfo* info)
     }
     if (info->ErrorInfo == Error_ResistanceError)
     {
+        info->NextMode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
     // 检查电感
@@ -599,6 +600,7 @@ void CheckMotorInfoVality(MotorInfo* info)
     }
     else if (info->ErrorInfo == Error_InductanceError)
     {
+        info->NextMode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
     // 检查转向
@@ -611,6 +613,7 @@ void CheckMotorInfoVality(MotorInfo* info)
     }
     else if (info->ErrorInfo == Error_DirectionError)
     {
+        info->NextMode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
     // 低压检测
@@ -623,6 +626,7 @@ void CheckMotorInfoVality(MotorInfo* info)
     }
     else if (info->ErrorInfo == Error_PowerLowVoltage)
     {
+        info->NextMode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
     if (info->Udc < 11.40F)
@@ -640,9 +644,9 @@ void CheckMotorInfoVality(MotorInfo* info)
     }
     else if (info->ErrorInfo == Error_PowerHighVoltage)
     {
+        info->NextMode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
-    
     // 温度检测
     if (info->Temp > 65)
     {
@@ -653,6 +657,7 @@ void CheckMotorInfoVality(MotorInfo* info)
     }
     else if (info->ErrorInfo == Error_TemperatureHigh)
     {
+        info->NextMode = MM_NULL;
         info->ErrorInfo = Error_Null;
     }
     if (info->Temp > 55)

@@ -2,18 +2,20 @@
 #include "stdlib.h"
 #include "stdarg.h"
 #include "string.h"
+#include "MMPrintf.h"
+#include "Delay.h"
 #include "motor.h"
 #include "Encoder.h"
 #include "CAN.h"
 
-extern MotorInfo motor; //电机信息
-extern EncoderInfo Encoder; //编码器信息
-extern uint8_t PrintfConfigInfoFlag;    //打印配置信息标志位
-extern uint8_t PrintfDebugInfoFlag; //打印调试信息标志位
-extern uint8_t HeartbeatFlag;  //心跳是否开启标志
-extern uint8_t HeartbeatCycle; //心跳周期
-void SystemConfigInfoSave(void);
-void InterfaceModeSelect(uint8_t mode);
+extern MotorInfo motor; // 电机信息
+extern EncoderInfo Encoder; // 编码器信息
+extern uint8_t PrintfConfigInfoFlag;    // 打印配置信息标志位
+extern uint8_t PrintfDebugInfoFlag; // 打印调试信息标志位
+extern uint8_t HeartbeatFlag;  // 心跳是否开启标志
+extern uint8_t HeartbeatCycle; // 心跳周期
+extern void SystemConfigInfoSave(void);
+extern void InterfaceModeSelect(int8_t mode);
 
 /// @brief 串口命令解析
 /// @param data 要解析的命令
@@ -23,6 +25,14 @@ void UsartCommandAnalyze(char* data)
     unsigned short command = data[0] << 8 | data[1];
     switch (command)
     {
+    case 'R' << 8 | 'S':  // 重启系统
+        ClosePWM( );    // 关闭PWM
+        __disable_irq( );   // 关闭中断
+        NVIC_SystemReset( );    // 系统重启
+        break;
+    case 'I' << 8 | 'D': // 设置电机ID
+        motor.MotorID = (uint8_t)atoi(data + 2) & 0x3F;
+        break;
     case 'N' << 8 | 'U':  // 停止电机
         motor.NextMode = MM_NULL;
         break;
@@ -37,14 +47,6 @@ void UsartCommandAnalyze(char* data)
         break;
     case 'A' << 8 | 'C':  // 抗齿槽力矩校准
         motor.NextMode = MM_AnticoggingCalibration;
-        break;
-    case 'V' << 8 | 'F':  // 开环VF控制
-        motor.NextMode = MM_OpenLoopVF;
-        motor.OpenLoopTargetSpeed = strtof(data + 2, NULL);
-        break;
-    case 'I' << 8 | 'F':  // 开环IF控制
-        motor.NextMode = MM_OpenLoopIF;
-        motor.OpenLoopTargetSpeed = strtof(data + 2, NULL);
         break;
     case 'U' << 8 | 'P':  // 更新系统配置信息
         SystemConfigInfoSave( );
@@ -101,7 +103,12 @@ void UsartCommandAnalyze(char* data)
         motor.LimitSpeed = strtof(data + 2, NULL);
         break;
     case 'D' << 8 | 'S': // 设置板载4P接口为烧录模式
+        ClosePWM( );    // 关闭PWM
+        __disable_irq( );   // 关闭中断
         InterfaceModeSelect(0);
+        break;
+    default:
+        MM_printf("Unknown command:%c%c\n", data[0], data[1]);
         break;
     }
 }
@@ -187,6 +194,11 @@ static void canReturnDataConcatenation(can_receive_message_struct* msg)
             memcpy(m.tx_data + count, &motor.Temp, 4);
             count += 4;
             break;
+        case DataIndex_Current:
+            if (count > 4) goto end;
+            memcpy(m.tx_data + count, &motor.Iq, 4);
+            count += 4;
+            break;
         case DataIndex_TargetCurrent:
             if (count > 4) goto end;
             memcpy(m.tx_data + count, &motor.TargetCurrent, 4);
@@ -197,6 +209,11 @@ static void canReturnDataConcatenation(can_receive_message_struct* msg)
             memcpy(m.tx_data + count, &motor.LimitCurrent, 4);
             count += 4;
             break;
+        case DataIndex_Speed:
+            if (count > 4) goto end;
+            memcpy(m.tx_data + count, &Encoder.Speed, 4);
+            count += 4;
+            break;
         case DataIndex_TargetSpeed:
             if (count > 4) goto end;
             memcpy(m.tx_data + count, &motor.TargetSpeed, 4);
@@ -205,6 +222,11 @@ static void canReturnDataConcatenation(can_receive_message_struct* msg)
         case DataIndex_LimitSpeed:
             if (count > 4) goto end;
             memcpy(m.tx_data + count, &motor.LimitSpeed, 4);
+            count += 4;
+            break;
+        case DataIndex_Position:
+            if (count > 4) goto end;
+            memcpy(m.tx_data + count, &Encoder.AccAngle, 4);
             count += 4;
             break;
         case DataIndex_TargetPosition:
@@ -244,18 +266,13 @@ end:
     canSend(CAN0, &m);
 }
 
+
 /// @brief can命令解析
 /// @param msg 接收到的数据帧
 void CanCommandAnalyze(can_receive_message_struct* msg)
 {
     switch (msg->rx_sfid & 0x0000001F)
     {
-    case CanCommand_OpenMotor:  // 开启电机
-        OpenPWM( );
-        break;
-    case CanCommand_CloseMotor: // 关闭电机
-        ClosePWM( );
-        break;
     case CanCommand_setMotorMode:    // 设置电机模式
         motor.NextMode = (MotorMode)msg->rx_data[0];
         break;
@@ -284,6 +301,9 @@ void CanCommandAnalyze(can_receive_message_struct* msg)
         break;
     case CanCommand_readData:   // 读取数据
         canReturnDataConcatenation(msg);
+        break;
+    case CanCommand_InterfaceModeSelect: // 选择板载4P接口的模式
+        InterfaceModeSelect(-1);
         break;
     default:
         break;

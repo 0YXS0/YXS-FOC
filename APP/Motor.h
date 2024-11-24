@@ -14,8 +14,7 @@ typedef enum __MotorMode
     MM_CurrentControl,	// 电流控制
     MM_SpeedControl,	// 速度控制
     MM_PositionControl,	// 位置控制
-    MM_OpenLoopVF,    // 开环VF控制
-    MM_OpenLoopIF,  // 开环IF控制
+
     MM_Error = 0xFF	// 错误
 }MotorMode;	// 电机模式
 typedef struct __MotorInfo
