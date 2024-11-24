@@ -563,7 +563,7 @@ void UpdatePIDInfo(MotorInfo* info)
 /// @brief 检测电机信息有效性
 /// @param info 电机信息
 /// @param PrintfFlag 是否打印信息(0:不打印 1:打印)
-void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag)
+void CheckMotorInfoVality(MotorInfo* info)
 {
     // 检查极对数
     if (info->PolePairs < 1 || info->PolePairs > 30)
@@ -571,8 +571,6 @@ void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag)
         info->NextMode = MM_Error;
         if (info->ErrorInfo == Error_Null)
             info->ErrorInfo = Error_PolePairsError;
-        if (PrintfFlag == 1)
-            MM_printf("CheckMotorInfoVality-PolePairs error\n");
         return;
     }
     else if (info->ErrorInfo == Error_PolePairsError)
@@ -585,8 +583,6 @@ void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag)
         info->NextMode = MM_Error;
         if (info->ErrorInfo == Error_Null)
             info->ErrorInfo = Error_ResistanceError;
-        if (PrintfFlag == 1)
-            MM_printf("CheckMotorInfoVality-Resistance error\n");
         return;
     }
     if (info->ErrorInfo == Error_ResistanceError)
@@ -599,8 +595,6 @@ void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag)
         info->NextMode = MM_Error;
         if (info->ErrorInfo == Error_Null)
             info->ErrorInfo = Error_InductanceError;
-        if (PrintfFlag == 1)
-            MM_printf("CheckMotorInfoVality-Inductance error\n");
         return;
     }
     else if (info->ErrorInfo == Error_InductanceError)
@@ -613,37 +607,57 @@ void CheckMotorInfoVality(MotorInfo* info, uint8_t PrintfFlag)
         info->NextMode = MM_Error;
         if (info->ErrorInfo == Error_Null)
             info->ErrorInfo = Error_DirectionError;
-        if (PrintfFlag == 1)
-            MM_printf("CheckMotorInfoVality-Direction error\n");
         return;
     }
     else if (info->ErrorInfo == Error_DirectionError)
     {
         info->ErrorInfo = Error_Null;
     }
-    // // 检查电源电压
-    // if (info->Udc < 11.20F) // 电源电压低于11.20V
-    // {
-    //     info->NextMode = MM_Error;
-    //     if (info->ErrorInfo == Error_Null)
-    //         info->ErrorInfo = Error_PowerLowVoltage;
-    //     if (PrintfFlag == 1)
-    //         MM_printf("CheckMotorInfoVality-PowerLowVoltage:%.6f\n", info->Udc);
-    //     return;
-    // }
+    // 低压检测
+    if (info->Udc < 11.10F) // 电源电压低于11.10V
+    {
+        info->NextMode = MM_Error;
+        if (info->ErrorInfo == Error_Null)
+            info->ErrorInfo = Error_PowerLowVoltage;
+        return;
+    }
+    else if (info->ErrorInfo == Error_PowerLowVoltage)
+    {
+        info->ErrorInfo = Error_Null;
+    }
+    if (info->Udc < 11.40F)
+        info->WarningInfo = Warning_PowerLowVoltage;
+    else if (info->WarningInfo == Warning_PowerLowVoltage)
+        info->WarningInfo = Warning_Null;
+
     // 高压检测
     if (info->Udc > 16.80F)    // 电源电压高于16.80V
     {
         info->NextMode = MM_Error;
         if (info->ErrorInfo == Error_Null)
             info->ErrorInfo = Error_PowerHighVoltage;
-        if (PrintfFlag == 1)
-            MM_printf("CheckMotorInfoVality-PowerHighVoltage\n");
         return;
     }
     else if (info->ErrorInfo == Error_PowerHighVoltage)
     {
         info->ErrorInfo = Error_Null;
     }
+    
+    // 温度检测
+    if (info->Temp > 65)
+    {
+        info->NextMode = MM_Error;
+        if (info->ErrorInfo == Error_Null)
+            info->ErrorInfo = Error_TemperatureHigh;
+        return;
+    }
+    else if (info->ErrorInfo == Error_TemperatureHigh)
+    {
+        info->ErrorInfo = Error_Null;
+    }
+    if (info->Temp > 55)
+        info->WarningInfo = Warning_TemperatureHigh;
+    else if (info->WarningInfo == Warning_TemperatureHigh)
+        info->WarningInfo = Warning_Null;
 }
 
