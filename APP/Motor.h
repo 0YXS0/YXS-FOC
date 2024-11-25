@@ -39,8 +39,14 @@ typedef struct __MotorInfo
     float TargetCurrent;    // 目标电流
     float LimitCurrent; // 限制电流(用户设定的最大电流)
     float TargetSpeed;  // 目标速度
+    float AxisSpeed;  // 减速器输出轴速度
+    float AxisTargetSpeed;  // 减速器输出轴目标速度
     float LimitSpeed;   // 限制速度(用户设定的最大速度)
+    float AxisLimitSpeed;   // 减速器输出轴限制速度
     float TargetPosition;   // 目标位置
+    float AxisPosition;  // 减速器输出轴单圈绝对位置
+    float AxisAccPosition; // 减速器输出轴累积位置
+    float AxisTargetPosition;   // 减速器输出轴目标位置
     uint8_t IsOpenAntiCoggingFlag;  // 是否开启抗齿槽力矩
     uint8_t AnticoggingCalibratedFlag;    // 抗齿槽力矩校准标志(0:已校准,!0:未校准)
     float AnticogongTorqueTable[ANTICOGING_TABLE_NUM]; // 抗齿槽力矩表

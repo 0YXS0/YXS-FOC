@@ -40,7 +40,7 @@ MotorInfo motor = {
 	.PolePairs = 7,
 	.MAXPulse = TIMER_PERIOD,
 	.MaxCurrent = 10.0F,
-	.MaxSpeed = 120.0F,
+	.MaxSpeed = 140.0F,
 	.Resistance = 0.265705F,
 	.Inductance = 0.000837F,
 	.Udc = 0.0F,
@@ -51,6 +51,7 @@ MotorInfo motor = {
 	.PIDInfoSpeed.Ki = 0.00025F,
 	.PIDInfoPosition.Kp = 5.0F,
 	.PIDInfoPosition.Ki = 0.0F,
+	.IsOpenAntiCoggingFlag = 1,
 	.AnticoggingCalibratedFlag = 0,
 	.WarningInfo = Warning_Null,
 	.ErrorInfo = Error_Null,
@@ -278,6 +279,7 @@ int main( )
 	CAN0_config(motor.MotorID);	// CAN配置
 	InterfaceModeSelect(1);	// 选择串口模式
 	motor.LimitCurrent = motor.MaxCurrent;	// 电流限制
+	motor.AxisLimitSpeed = motor.MaxSpeed / REDUTION_RATIO;	// 速度限制
 	motor.LimitSpeed = motor.MaxSpeed;	// 速度限制
 	if (getEncoderRawCount(&Value) < 0)	// 编码器读取错误
 		motor.ErrorInfo = Error_EncoderReadError;
@@ -299,7 +301,7 @@ int main( )
 		}
 		if (PrintfDebugInfoFlag == 1)
 		{/// 打印调试信息
-			JustFloat_Show(12, motor.Ia, motor.Ib, motor.Ic, motor.TargetCurrent, motor.Iq, motor.Id, motor.TargetSpeed, Encoder.Speed, motor.TargetPosition, Encoder.Angle, Encoder.AccAngle, motor.Temp);
+			JustFloat_Show(12, motor.Ia, motor.Ib, motor.Ic, motor.TargetCurrent, motor.Iq, motor.Id, motor.AxisTargetSpeed, motor.AxisSpeed, motor.AxisTargetPosition, motor.AxisPosition, motor.AxisAccPosition, motor.Temp);
 		}
 	}
 }
@@ -406,7 +408,7 @@ static inline void QuitMotorMode(void)
 			MM_printf("EncoderOffsetCalibration-Unknown error\n");
 		}
 		break;
-	case MM_AnticoggingCalibration:
+	case MM_AnticoggingCalibration:	// 退出抗齿槽力矩校准模式
 		ret = AnticoggingCalibration(&motor, True);
 		if (ret == 0)
 		{
@@ -427,18 +429,19 @@ static inline void QuitMotorMode(void)
 			MM_printf("AnticoggingCalibration-Unknown error\n");
 		}
 		break;
-	case MM_PositionControl:
+	case MM_PositionControl:	// 退出位置环控制模式
 		motor.PIDInfoPosition.integral = 0.0F;	// 位置环积分清零
 		motor.PIDInfoPosition.lastError = 0.0F;	// 位置环上一次误差清零
 		motor.PIDInfoPosition.lastOutput = 0.0F;	// 位置环上一次输出清零
+		motor.AxisTargetPosition = motor.AxisAccPosition;	// 目标位置为当前位置
 		break;
-	case MM_SpeedControl:
+	case MM_SpeedControl:	// 退出速度环控制模式
 		motor.PIDInfoSpeed.integral = 0.0F;	// 速度环积分清零
 		motor.PIDInfoSpeed.lastError = 0.0F;	// 速度环上一次误差清零
 		motor.PIDInfoSpeed.lastOutput = 0.0F;	// 速度环上一次输出清零
-		motor.TargetSpeed = 0.0F;	// 目标速度清零
+		motor.AxisTargetSpeed = 0.0F;	// 目标速度清零
 		break;
-	case MM_CurrentControl:
+	case MM_CurrentControl:	// 退出电流环控制模式
 		motor.PIDInfoIQ.integral = 0.0F;	// q轴电流环积分清零
 		motor.PIDInfoIQ.lastError = 0.0F;	// q轴电流环上一次误差清零
 		motor.PIDInfoIQ.lastOutput = 0.0F;	// q轴电流环上一次输出清零
@@ -465,19 +468,19 @@ static inline void EnterMotorMode(void)
 	case MM_NULL:
 		motor.CurMode = MM_NULL;
 		break;
-	case MM_DetectingResistance:
+	case MM_DetectingResistance:	// 进入电机电阻检测模式
 		if (motor.CurMode == MM_Error && motor.ErrorInfo != Error_ResistanceError) break;
 		MM_printf("DetectingResistance-Start\n");
 		motor.CurMode = MM_DetectingResistance;
 		OpenPWM( );	// 开启PWM
 		break;
-	case MM_DetectingInductance:
+	case MM_DetectingInductance:	// 进入电机电感检测模式
 		if (motor.CurMode == MM_Error && motor.ErrorInfo != Error_InductanceError) break;
 		MM_printf("DetectingInductance-Start\n");
 		motor.CurMode = MM_DetectingInductance;
 		OpenPWM( );	// 开启PWM
 		break;
-	case MM_EncoderCalibration:
+	case MM_EncoderCalibration:	// 进入编码器校准模式
 		if (motor.CurMode == MM_Error &&
 			!(motor.ErrorInfo == Error_EncoderOffsetError || motor.ErrorInfo == Error_PolePairsError || motor.ErrorInfo == Error_DirectionError))
 			break;
@@ -485,24 +488,24 @@ static inline void EnterMotorMode(void)
 		motor.CurMode = MM_EncoderCalibration;
 		OpenPWM( );	// 开启PWM
 		break;
-	case MM_AnticoggingCalibration:
+	case MM_AnticoggingCalibration:	// 进入抗齿槽力矩校准模式
 		if (motor.CurMode == MM_Error) break;
 		MM_printf("AnticoggingCalibration-Start\n");
 		motor.CurMode = MM_AnticoggingCalibration;
 		OpenPWM( );	// 开启PWM
 		break;
-	case MM_PositionControl:
+	case MM_PositionControl:	// 进入位置环控制模式
 		if (motor.CurMode == MM_Error) break;
 		motor.CurMode = MM_PositionControl;
-		motor.TargetPosition = Encoder.AccAngle;
+		motor.AxisTargetPosition = motor.AxisAccPosition;	// 设置目标位置为当前位置(防止电机突然旋转)
 		OpenPWM( );	// 开启PWM
 		break;
-	case MM_SpeedControl:
+	case MM_SpeedControl:	// 进入速度环控制模式
 		if (motor.CurMode == MM_Error) break;
 		motor.CurMode = MM_SpeedControl;
 		OpenPWM( );	// 开启PWM
 		break;
-	case MM_CurrentControl:
+	case MM_CurrentControl:	// 进入电流环控制模式
 		if (motor.CurMode == MM_Error) break;
 		motor.CurMode = MM_CurrentControl;
 		OpenPWM( );	// 开启PWM
@@ -515,7 +518,7 @@ static inline void EnterMotorMode(void)
 
 void ADC0_1_IRQHandler(void)
 {//ADC0中断服务函数
-	static float current = 0, speed = 0;	// 临时目标电流
+	static float current = 0, speed = 0;	// 临时变量
 	static int8_t ret = 0;	// 返回值
 
 	if (adc_interrupt_flag_get(ADC1, ADC_INT_FLAG_EOIC) == RESET)
@@ -539,6 +542,15 @@ void ADC0_1_IRQHandler(void)
 			motor.ErrorInfo = Error_EncoderReadError;
 		}
 	}
+	speed = motor.AxisLimitSpeed;
+	LIMIT(speed, -motor.AxisLimitSpeed, motor.AxisLimitSpeed);	// 限制速度范围
+	motor.LimitSpeed = fabsf(speed * REDUTION_RATIO);	// 计算限制速度
+	motor.TargetSpeed = motor.AxisTargetSpeed * REDUTION_RATIO;	// 计算目标速度
+	if (motor.CurMode != MM_AnticoggingCalibration)
+		motor.TargetPosition = motor.AxisTargetPosition * REDUTION_RATIO;	// 计算目标位置
+	motor.AxisSpeed = Encoder.Speed / REDUTION_RATIO;	// 计算电机轴速度
+	motor.AxisAccPosition = Encoder.AccAngle / REDUTION_RATIO;	// 计算电机轴累积位置
+	motor.AxisPosition = fmodf(motor.AxisAccPosition, _2PI);	// 计算减速器轴绝对位置
 
 	if (motor.CurMode != motor.NextMode)	// 电机模式需要发生改变
 	{

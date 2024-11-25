@@ -10,8 +10,6 @@ typedef enum __DataIndex
     DataIndex_PolePairs,
     DataIndex_Resistance,
     DataIndex_Inductance,
-    DataIndex_MaxCurrent,
-    DataIndex_MaxSpeed,
     DataIndex_Udc,
     DataIndex_Temp,
     DataIndex_Current,
@@ -40,8 +38,8 @@ typedef enum __CanCommand   // (0x00 - 0x1F)
     CanCommand_SaveConfig,  // 保存配置
     CanCommand_setHeartbeat,   // 设置心跳周期
     CanCommand_setAntiCogging, // 开启抗齿槽力矩补偿
-    CanCommand_InterfaceModeSelect, // 选择板载4P接口的模式
 
+    CanCommand_InterfaceModeSelect = 0x1D, // 选择板载4P接口的模式
     CanCommand_readData = 0x1E, // 读取数据
     CanCommand_returnData = 0x1F,   // 返回数据
 }CanCommand;

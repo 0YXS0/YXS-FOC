@@ -2,6 +2,7 @@
 #include "stdlib.h"
 #include "stdarg.h"
 #include "string.h"
+#include "main.h"
 #include "MMPrintf.h"
 #include "Delay.h"
 #include "motor.h"
@@ -83,7 +84,7 @@ void UsartCommandAnalyze(char* data)
         motor.AnticoggingCalibratedFlag = atoi(data + 2);
         break;
     case 'S' << 8 | 'T': // 设置目标速度
-        motor.TargetSpeed = strtof(data + 2, NULL);
+        motor.AxisTargetSpeed = strtof(data + 2, NULL);
         break;
     case 'P' << 8 | 'P':  // 设置位置环Kp
         motor.PIDInfoPosition.Kp = strtof(data + 2, NULL);
@@ -94,13 +95,13 @@ void UsartCommandAnalyze(char* data)
         UpdatePIDInfo(&motor);  // 更新PID参数
         break;
     case 'P' << 8 | 'T': // 设置目标位置
-        motor.TargetPosition = strtof(data + 2, NULL);
+        motor.AxisTargetPosition = strtof(data + 2, NULL);
         break;
-    case 'L' << 8 | 'C': // 设置电机最大电流
+    case 'L' << 8 | 'C': // 设置电机限制电流
         motor.LimitCurrent = strtof(data + 2, NULL);
         break;
-    case 'L' << 8 | 'S': // 设置电机最大速度
-        motor.LimitSpeed = strtof(data + 2, NULL);
+    case 'L' << 8 | 'S': // 设置电机限制速度
+        motor.AxisLimitSpeed = strtof(data + 2, NULL);
         break;
     case 'D' << 8 | 'S': // 设置板载4P接口为烧录模式
         ClosePWM( );    // 关闭PWM
@@ -128,10 +129,10 @@ void canSendHeartbeatFrame(void)
         memcpy(m.tx_data + 1, &motor.Iq, 4);
         break;
     case MM_SpeedControl:
-        memcpy(m.tx_data + 1, &Encoder.Speed, 4);
+        memcpy(m.tx_data + 1, &motor.AxisSpeed, 4);
         break;
     case MM_PositionControl:
-        memcpy(m.tx_data + 1, &Encoder.AccAngle, 4);
+        memcpy(m.tx_data + 1, &motor.AxisAccPosition, 4);
         break;
     default:
         memset(m.tx_data + 1, 0x00, 4);
@@ -174,16 +175,6 @@ static void canReturnDataConcatenation(can_receive_message_struct* msg)
             memcpy(m.tx_data + count, &motor.Inductance, 4);
             count += 4;
             break;
-        case DataIndex_MaxCurrent:
-            if (count > 4) goto end;
-            memcpy(m.tx_data + count, &motor.MaxCurrent, 4);
-            count += 4;
-            break;
-        case DataIndex_MaxSpeed:
-            if (count > 4) goto end;
-            memcpy(m.tx_data + count, &motor.MaxSpeed, 4);
-            count += 4;
-            break;
         case DataIndex_Udc:
             if (count > 4) goto end;
             memcpy(m.tx_data + count, &motor.Udc, 4);
@@ -211,27 +202,27 @@ static void canReturnDataConcatenation(can_receive_message_struct* msg)
             break;
         case DataIndex_Speed:
             if (count > 4) goto end;
-            memcpy(m.tx_data + count, &Encoder.Speed, 4);
+            memcpy(m.tx_data + count, &motor.AxisSpeed, 4);
             count += 4;
             break;
         case DataIndex_TargetSpeed:
             if (count > 4) goto end;
-            memcpy(m.tx_data + count, &motor.TargetSpeed, 4);
+            memcpy(m.tx_data + count, &motor.AxisTargetSpeed, 4);
             count += 4;
             break;
         case DataIndex_LimitSpeed:
             if (count > 4) goto end;
-            memcpy(m.tx_data + count, &motor.LimitSpeed, 4);
+            memcpy(m.tx_data + count, &motor.AxisLimitSpeed, 4);
             count += 4;
             break;
         case DataIndex_Position:
             if (count > 4) goto end;
-            memcpy(m.tx_data + count, &Encoder.AccAngle, 4);
+            memcpy(m.tx_data + count, &motor.AxisAccPosition, 4);
             count += 4;
             break;
         case DataIndex_TargetPosition:
             if (count > 4) goto end;
-            memcpy(m.tx_data + count, &motor.TargetPosition, 4);
+            memcpy(m.tx_data + count, &motor.AxisTargetPosition, 4);
             count += 4;
             break;
         case DataIndex_IsOpenAntiCoggingFlag:
@@ -277,16 +268,16 @@ void CanCommandAnalyze(can_receive_message_struct* msg)
         motor.NextMode = (MotorMode)msg->rx_data[0];
         break;
     case CanCommand_setTargetPosition:   // 设置目标位置
-        motor.TargetPosition = *(float*)(msg->rx_data);
+        motor.AxisTargetPosition = *(float*)(msg->rx_data);
         break;
     case CanCommand_setTargetSpeed:  // 设置目标速度
-        motor.TargetSpeed = *(float*)(msg->rx_data);
+        motor.AxisTargetSpeed = *(float*)(msg->rx_data);
         break;
     case CanCommand_setTargetCurrent:    // 设置目标电流(力矩)
         motor.TargetCurrent = *(float*)(msg->rx_data);
         break;
     case CanCommand_setLimitSpeedANDCurrent: // 设置速度和电流限制
-        motor.LimitSpeed = *(float*)(msg->rx_data);
+        motor.AxisLimitSpeed = *(float*)(msg->rx_data);
         motor.LimitCurrent = *(float*)(msg->rx_data + 4);
         break;
     case CanCommand_SaveConfig:  // 保存配置
