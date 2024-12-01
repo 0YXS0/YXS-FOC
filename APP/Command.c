@@ -80,8 +80,8 @@ void UsartCommandAnalyze(char* data)
         motor.PIDInfoSpeed.Ki = strtof(data + 2, NULL);
         UpdatePIDInfo(&motor);  // 更新PID参数
         break;
-    case 'A' << 8 | 'F':  // 启动抗齿槽力矩校准
-        motor.AnticoggingCalibratedFlag = atoi(data + 2);
+    case 'S' << 8 | 'D':  // 设置速度环Ki
+        motor.PIDInfoSpeed.Kd = strtof(data + 2, NULL);
         break;
     case 'S' << 8 | 'T': // 设置目标速度
         motor.AxisTargetSpeed = strtof(data + 2, NULL);
@@ -93,6 +93,9 @@ void UsartCommandAnalyze(char* data)
     case 'P' << 8 | 'I':  // 设置位置环Ki
         motor.PIDInfoPosition.Ki = strtof(data + 2, NULL);
         UpdatePIDInfo(&motor);  // 更新PID参数
+        break;
+    case 'P' << 8 | 'D':  // 设置位置环Ki
+        motor.PIDInfoPosition.Kd = strtof(data + 2, NULL);
         break;
     case 'P' << 8 | 'T': // 设置目标位置
         motor.AxisTargetPosition = strtof(data + 2, NULL);

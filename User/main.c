@@ -584,7 +584,7 @@ void ADC0_1_IRQHandler(void)
 		if (ret == 1)	// 编码器校准完成
 			motor.NextMode = MM_NULL;
 		else if (ret < 0)	// 编码器校准错误
-			motor.NextMode = MM_Error;
+			motor.NextMode = MM_NULL;
 		break;
 
 	case MM_AnticoggingCalibration:	// 抗齿槽力矩校准
@@ -605,11 +605,12 @@ void ADC0_1_IRQHandler(void)
 		fast_sin_cos(motor.Angle, &motor.sinValue, &motor.cosValue); // 计算角度sin值和cos值
 		Clarke_Transf(&motor);	// Clarke变换
 		Park_Transf(&motor);	// Park变换
-		if (motor.CurMode != MM_AnticoggingCalibration && \
+		if (motor.IsOpenAntiCoggingFlag == 1 && \
 			motor.AnticoggingCalibratedFlag == 1 && \
-			motor.IsOpenAntiCoggingFlag == 1)// 抗齿槽力矩补偿
-		{
-			current = motor.TargetCurrent + motor.AnticogongTorqueTable[(uint32_t)roundf((float)Encoder.RawCount / ANTICOGING_INCREMENT)];
+			motor.CurMode != MM_AnticoggingCalibration)
+		{// 抗齿槽力矩补偿
+			current = motor.TargetCurrent + \
+				motor.AnticogongTorqueTable[(uint32_t)floorf((float)Encoder.RawCount / ANTICOGING_INCREMENT)];
 		}
 		else
 			current = motor.TargetCurrent;

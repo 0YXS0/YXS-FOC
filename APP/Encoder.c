@@ -71,7 +71,7 @@ int8_t Encoder_UpdateValue(void)
     // 计算角度
     Encoder.Angle = fmodf((Encoder.RawCount + Encoder.IntterpolationValue - Encoder.OffsetCount) * _2PI / ENCODER_PULSE, _2PI); //计算角度
     if (Encoder.Angle < 0) Encoder.Angle += _2PI; // 转换为0~2PI范围内的值
-    Encoder.AccAngle = Encoder.AccCount * _2PI / ENCODER_PULSE; // 计算累积角度
+    Encoder.AccAngle = Encoder.EstimateAccCount * _2PI / ENCODER_PULSE; // 计算累积角度
     Encoder.Speed = MoveAverageFilter(&FilterInfo_EncoderSpeed, Encoder.EstimateSpeedCount * _2PI / ENCODER_PULSE); // 计算速度
     return 0;
 }

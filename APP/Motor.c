@@ -442,12 +442,10 @@ int8_t AnticoggingCalibration(MotorInfo* info, uint8_t Flag)
     static int8_t ret = 0;
     static uint8_t State = 0;
     static uint32_t index = 0, LoopCount = 0;
-    static float Diff = 0.0F, Increment = 0.0F, Ki = 0.0F;
+    static float Diff = 0.0F, Increment = 0.0F;
 
     if (Flag)
     {
-        if (State != 0)
-            info->PIDInfoSpeed.Ki = Ki; // 重置积分增益
         State = 0;
         return ret;
     }
@@ -463,25 +461,22 @@ int8_t AnticoggingCalibration(MotorInfo* info, uint8_t Flag)
         info->AnticoggingCalibratedFlag = 0;
         Increment = _2PI / ANTICOGING_TABLE_NUM;    // 每次增加的角度
         info->TargetPosition = Encoder.AccAngle - ((float)Encoder.RawCount / ENCODER_PULSE * _2PI);  // 让电机处于编码器的零点
-        Ki = info->PIDInfoSpeed.Ki;
         State = 1;
         break;
     case 1:/// 正转一圈
         Diff = info->TargetPosition - Encoder.AccAngle; // 计算角度差
-        if (fabsf(Diff) < Increment / 10.0F && fabsf(Encoder.Speed) < 0.05F && LoopCount > (FOC_CONTROL_FREQ / 10))
+        if (fabsf(Diff) < Increment / 5.0F && fabsf(Encoder.Speed) < 0.15F)
         {/// 到达目标位置
             info->AnticogongTorqueTable[index++] = info->PIDInfoSpeed.integral * info->PIDInfoSpeed.Ki; // 记录校准力矩
             MM_printf("index:%d, Torque:%.6f\n", index - 1, info->AnticogongTorqueTable[index - 1]);    // 打印校准力矩
             info->TargetPosition += Increment;  // 下一个目标位置
             LoopCount = 0;  // 重置计数
-            info->PIDInfoSpeed.Ki = Ki; // 重置积分增益
         }
-        else/// 未到达目标位置
-        {
+        else
+        {/// 未到达目标位置
             LoopCount++;
-            if (LoopCount % (FOC_CONTROL_FREQ / 10) == 0) info->PIDInfoSpeed.Ki += Ki * 0.01F; // 增加积分增益
         }
-        if (LoopCount >= FOC_CONTROL_FREQ * 30)
+        if (LoopCount > FOC_CONTROL_FREQ * 60)
         {/// 超时
             ret = -1;
         }
@@ -492,33 +487,7 @@ int8_t AnticoggingCalibration(MotorInfo* info, uint8_t Flag)
             State = 2;
         }
         break;
-    case 2:/// 反转一圈
-        Diff = info->TargetPosition - Encoder.AccAngle; // 计算角度差
-        if (fabsf(Diff) < Increment / 5.0F && fabsf(Encoder.Speed) < 0.1F && LoopCount > (FOC_CONTROL_FREQ / 10))
-        {/// 到达目标位置
-            info->AnticogongTorqueTable[index] = info->PIDInfoSpeed.integral * info->PIDInfoSpeed.Ki; // 记录校准力矩
-            info->AnticogongTorqueTable[index--] /= 2.0F; // 平均校准力矩
-            MM_printf("index:%d, Torque:%.6f\n", index + 1, info->AnticogongTorqueTable[index + 1]);    // 打印校准力矩
-            info->TargetPosition -= Increment;  // 下一个目标位置
-            LoopCount = 0;  // 重置计数
-            info->PIDInfoSpeed.Ki = Ki; // 重置积分增益
-        }
-        else/// 未到达目标位置
-        {
-            LoopCount++;
-            if (LoopCount % (FOC_CONTROL_FREQ / 10) == 0) info->PIDInfoSpeed.Ki += Ki * 0.01F; // 增加积分增益
-        }
-        if (LoopCount >= FOC_CONTROL_FREQ * 30)
-        {/// 超时
-            ret = -1;
-        }
-        if (index >= ANTICOGING_TABLE_NUM)  // 完成校准
-        {
-            LoopCount = 0;
-            State = 3;
-        }
-        break;
-    case 3:
+    case 2:
         ret = 1;
         break;
     default:
