@@ -72,7 +72,7 @@
         "type": "cortex-debug",
         "servertype": "openocd",
         "configFiles": [
-          "interface/stlink-v2.cfg",
+          "interface/stlink.cfg",
           "target/gd32f30x.cfg"
         ],
         "searchDir": [],

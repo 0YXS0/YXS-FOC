@@ -316,7 +316,7 @@
       "uploadConfig": {
         "bin": "",
         "target": "gd32f30x",
-        "interface": "stlink",
+        "interface": "stlink-v2",
         "baseAddr": "0x08000000"
       },
       "uploadConfigMap": {

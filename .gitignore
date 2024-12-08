@@ -33,6 +33,7 @@ secrets.txt
 /TSMaster
 *.png
 ~$*
+*.docx
 
 # Ignore operating system files
 # 忽略操作系统文件
